@@ -96,12 +96,12 @@ body {
 }
 
 .panel.narrow {
-  max-width: 420px;
-  margin: 10vh auto 0;
+  max-width: 360px;
+  margin: 14vh auto 0;
 }
 
 .admin-login-card {
-  padding: 18px;
+  padding: 14px;
 }
 
 .admin-grid {
@@ -210,11 +210,14 @@ label {
 
 #admin-login-form {
   min-height: 0;
+  gap: 8px;
 }
 
 #admin-login-form .login-submit {
   position: static;
-  width: 100%;
+  width: auto;
+  align-self: flex-start;
+  margin-top: 2px;
 }
 
 .stack-form.compact {
