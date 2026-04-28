@@ -1,0 +1,40 @@
+{
+  "announcements": [
+    {
+      "id": "seed",
+      "text": "Welcome to the STAGE Inventory System!",
+      "author": "Joe",
+      "ts": "2026-02-09T20:03:05.060255+00:00"
+    },
+    {
+      "id": "91fa6fb53d2b4a968a884cf158e8585b",
+      "text": "smoke ann 2026-03-15T04:28:01.5940017Z",
+      "author": "SOfficer",
+      "ts": "2026-03-15T04:28:01.654843+00:00"
+    },
+    {
+      "id": "69025760688f416fa5df6056d6c3c2dc",
+      "text": "smoke announcement 2026-03-15T04:29:53.990312+00:00",
+      "author": "SOfficer",
+      "ts": "2026-03-15T04:29:54.003569+00:00"
+    },
+    {
+      "id": "84c8c4902ae847dc91a767f50c55f094",
+      "text": "smoke announcement 2026-03-15T04:29:53.990312+00:00 owner",
+      "author": "Joe",
+      "ts": "2026-03-15T04:29:54.030107+00:00"
+    },
+    {
+      "id": "64803b28f882461db976cbcaed04057f",
+      "text": "smoke announcement 2026-03-15T04:30:57.288482+00:00",
+      "author": "SOfficer",
+      "ts": "2026-03-15T04:30:57.299463+00:00"
+    },
+    {
+      "id": "24d3def27948448d8642f7f1fd766d0e",
+      "text": "smoke announcement 2026-03-15T04:30:57.288482+00:00 owner",
+      "author": "Joe",
+      "ts": "2026-03-15T04:30:57.305290+00:00"
+    }
+  ]
+}

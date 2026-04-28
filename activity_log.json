@@ -1,0 +1,175 @@
+{
+  "activities": [
+    {
+      "ts": "2026-03-15T04:28:01.442084+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "add",
+      "item_id": 39,
+      "item_name": "Contig One",
+      "details": "created item; category 'General'; location 'West Campus Basement Storage'; in use: No; image: none"
+    },
+    {
+      "ts": "2026-03-15T04:28:01.454881+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "add",
+      "item_id": 40,
+      "item_name": "Contig Two",
+      "details": "created item; category 'General'; location 'West Campus Basement Storage'; in use: No; image: none"
+    },
+    {
+      "ts": "2026-03-15T04:28:01.488758+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "delete",
+      "item_id": 39,
+      "item_name": "Contig One",
+      "details": "deleted from location 'West Campus Basement Storage'; category 'General'; in use: No; image: none"
+    },
+    {
+      "ts": "2026-03-15T04:29:54.228952+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "add",
+      "item_id": 40,
+      "item_name": "Smoke Item A",
+      "details": "created item; category 'Props'; location 'West Campus Basement Storage'; in use: No; image: uploaded"
+    },
+    {
+      "ts": "2026-03-15T04:29:54.262612+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "edit",
+      "item_id": 40,
+      "item_name": "Smoke Item A Edited",
+      "details": "name: 'Smoke Item A' -> 'Smoke Item A Edited'; in use: No -> Yes; replaced image"
+    },
+    {
+      "ts": "2026-03-15T04:29:54.302725+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "add",
+      "item_id": 41,
+      "item_name": "Contig One",
+      "details": "created item; category 'General'; location 'West Campus Basement Storage'; in use: No; image: none"
+    },
+    {
+      "ts": "2026-03-15T04:29:54.323627+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "add",
+      "item_id": 42,
+      "item_name": "Contig Two",
+      "details": "created item; category 'General'; location 'West Campus Basement Storage'; in use: No; image: none"
+    },
+    {
+      "ts": "2026-03-15T04:29:54.350727+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "delete",
+      "item_id": 41,
+      "item_name": "Contig One",
+      "details": "deleted from location 'West Campus Basement Storage'; category 'General'; in use: No; image: none"
+    },
+    {
+      "ts": "2026-03-15T04:29:54.493629+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "delete",
+      "item_id": 41,
+      "item_name": "Contig Two",
+      "details": "deleted from location 'West Campus Basement Storage'; category 'General'; in use: No; image: none"
+    },
+    {
+      "ts": "2026-03-15T04:29:54.714647+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "delete",
+      "item_id": 40,
+      "item_name": "Smoke Item A Edited",
+      "details": "deleted from location 'West Campus Basement Storage'; category 'Props'; in use: Yes; image: present"
+    },
+    {
+      "ts": "2026-03-15T04:29:54.752634+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "delete",
+      "item_id": 39,
+      "item_name": "Contig Two",
+      "details": "deleted from location 'West Campus Basement Storage'; category 'General'; in use: No; image: none"
+    },
+    {
+      "ts": "2026-03-15T04:30:57.398148+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "add",
+      "item_id": 39,
+      "item_name": "Smoke Item A",
+      "details": "created item; category 'Props'; location 'West Campus Basement Storage'; in use: No; image: uploaded"
+    },
+    {
+      "ts": "2026-03-15T04:30:57.423301+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "edit",
+      "item_id": 39,
+      "item_name": "Smoke Item A Edited",
+      "details": "name: 'Smoke Item A' -> 'Smoke Item A Edited'; in use: No -> Yes; replaced image"
+    },
+    {
+      "ts": "2026-03-15T04:30:57.451794+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "edit",
+      "item_id": 39,
+      "item_name": "Smoke Item A Edited",
+      "details": "removed image"
+    },
+    {
+      "ts": "2026-03-15T04:30:57.467252+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "add",
+      "item_id": 40,
+      "item_name": "Contig One",
+      "details": "created item; category 'General'; location 'West Campus Basement Storage'; in use: No; image: none"
+    },
+    {
+      "ts": "2026-03-15T04:30:57.486148+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "add",
+      "item_id": 41,
+      "item_name": "Contig Two",
+      "details": "created item; category 'General'; location 'West Campus Basement Storage'; in use: No; image: none"
+    },
+    {
+      "ts": "2026-03-15T04:30:57.503646+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "delete",
+      "item_id": 40,
+      "item_name": "Contig One",
+      "details": "deleted from location 'West Campus Basement Storage'; category 'General'; in use: No; image: none"
+    },
+    {
+      "ts": "2026-03-15T04:30:57.558053+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "delete",
+      "item_id": 39,
+      "item_name": "Smoke Item A Edited",
+      "details": "deleted from location 'West Campus Basement Storage'; category 'Props'; in use: Yes; image: none"
+    },
+    {
+      "ts": "2026-03-15T04:30:57.611128+00:00",
+      "username": "SOfficer",
+      "role": "admin",
+      "action": "delete",
+      "item_id": 39,
+      "item_name": "Contig Two",
+      "details": "deleted from location 'West Campus Basement Storage'; category 'General'; in use: No; image: none"
+    }
+  ]
+}
