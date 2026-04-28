@@ -14,7 +14,6 @@ const appRoot = document.getElementById("app");
 const state = {
   mode: location.pathname.startsWith("/student") ? "student" : "admin",
   adminScreen: "catalog",
-  loginSubmitting: false,
   calendarVisible: false,
   calendarMinimized: false,
   calendarMonthOffset: 0,
@@ -96,7 +95,7 @@ async function handleResponse(res) {
     if (res.status === 401) {
       clearSession();
       if (state.mode === "admin") {
-        renderAdminLogin();
+        renderAdmin();
       }
     }
     const message = payload && payload.error ? payload.error : `Request failed (${res.status})`;
@@ -108,7 +107,6 @@ async function handleResponse(res) {
 function clearSession() {
   state.token = "";
   state.me = null;
-  state.loginSubmitting = false;
   state.adminScreen = "catalog";
   state.selectedShowId = null;
   state.showDetail = null;
@@ -171,59 +169,6 @@ async function renderAdmin() {
 
   await loadAdminData();
   renderAdminLayout();
-}
-
-function renderAdminLogin() {
-  state.loginSubmitting = false;
-  appRoot.innerHTML = `
-    <section class="auth-shell">
-      <section class="panel narrow admin-login-card">
-        <h2>Admin Sign In</h2>
-        <p class="muted">Managers, officers, and directors only.</p>
-        <form id="admin-login-form" class="stack-form" autocomplete="on">
-          <label>
-            Username
-            <input name="username" required autocomplete="username" autocapitalize="off" spellcheck="false">
-          </label>
-          <label>
-            Password
-            <input name="password" type="password" required autocomplete="current-password">
-          </label>
-          <button type="submit" class="login-submit" id="admin-login-submit">Sign In</button>
-        </form>
-      </section>
-    </section>
-  `;
-
-  const form = document.getElementById("admin-login-form");
-  const submitBtn = document.getElementById("admin-login-submit");
-  if (!form || !submitBtn) return;
-
-  form.addEventListener("submit", async (ev) => {
-    ev.preventDefault();
-    if (state.loginSubmitting) return;
-    const fd = new FormData(form);
-    const username = String(fd.get("username") || "").trim();
-    const password = String(fd.get("password") || "");
-    if (!username || !password) return;
-    try {
-      state.loginSubmitting = true;
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Signing In...";
-      const res = await apiPost(API.adminLogin, { username, password }, false);
-      setSession(res.token);
-      await renderAdmin();
-      notify("Signed in.");
-    } catch (err) {
-      notify(err.message, true);
-    } finally {
-      state.loginSubmitting = false;
-      if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Sign In";
-      }
-    }
-  });
 }
 
 async function loadAdminData() {
