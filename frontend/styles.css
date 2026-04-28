@@ -346,6 +346,46 @@ th {
   margin-bottom: 8px;
 }
 
+.group-type-section {
+  margin-top: 12px;
+}
+
+.group-table-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.group-table-card {
+  border: 1px solid rgba(79, 70, 229, 0.22);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(13, 18, 52, 0.8);
+}
+
+.group-table-card h5 {
+  margin: 0 0 8px;
+}
+
+.group-member-row {
+  cursor: grab;
+}
+
+.group-member-row:active {
+  cursor: grabbing;
+}
+
+.group-empty-row td {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.group-dropzone-active {
+  outline: 2px dashed rgba(124, 58, 237, 0.8);
+  outline-offset: -2px;
+  background: rgba(124, 58, 237, 0.16);
+}
+
 .group-members-select {
   min-height: 120px;
 }

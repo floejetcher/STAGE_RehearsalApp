@@ -17,6 +17,7 @@ const state = {
   calendarVisible: false,
   calendarMinimized: false,
   calendarMonthOffset: 0,
+  dragPayload: null,
   token: localStorage.getItem("stage_admin_token") || "",
   me: null,
   shows: [],
@@ -251,63 +252,11 @@ function renderAdminLayout() {
   const attendanceCast = renderAttendanceTab("cast");
   const attendanceCrew = renderAttendanceTab("crew");
 
-  const rehearsalOptions = state.rehearsals
-    .map((r) => `<option value="${r.id}" ${r.id === state.selectedRehearsalId ? "selected" : ""}>${escapeHtml(r.date)} ${escapeHtml(r.start_time || "")}-${escapeHtml(r.end_time || "")}</option>`)
-    .join("");
-
-  const isEditingShow = !!state.showDetail;
-  const showFormMarkup = isEditingShow
-    ? `
-      <form id="edit-show-form" class="stack-form compact">
-        <label>
-          Edit Show Name
-          <input name="name" value="${escapeHtml(state.showDetail ? state.showDetail.name : "")}" required>
-        </label>
-        <label>
-          Edit Cover Image
-          <input name="cover_image" type="file" accept=".png,.jpg,.jpeg,.webp,.gif">
-        </label>
-        <div class="inline-row">
-          <button type="submit">Save</button>
-          <button type="button" id="delete-show" class="danger">Delete Show</button>
-        </div>
-      </form>
-    `
-    : `
-      <form id="new-show-form" class="stack-form compact">
-        <label>
-          New Show Name
-          <input name="name" required>
-        </label>
-        <label>
-          Cover Image (optional)
-          <input name="cover_image" type="file" accept=".png,.jpg,.jpeg,.webp,.gif">
-        </label>
-        <button type="submit">Create Show</button>
-      </form>
-    `;
+  const groupTables = renderGroupTables();
 
   const coverPreview = state.showDetail && state.showDetail.cover_image_url
     ? `<img src="${escapeHtml(state.showDetail.cover_image_url)}" alt="${escapeHtml(state.showDetail.name)} cover">`
     : `<div class="catalog-placeholder">${escapeHtml((state.showDetail && state.showDetail.name ? state.showDetail.name : "S").slice(0, 1).toUpperCase())}</div>`;
-
-  const historyCards = state.history
-    .map((s) => {
-      const rows = (s.records || [])
-        .map((r) => {
-          const presentLabel = r.present ? "Present" : "Absent";
-          const preExcusedBadge = r.pre_excused ? "<span class=\"pill\">Pre-excused</span>" : "";
-          return `<li>${escapeHtml(`${r.first_name} ${r.last_name}`)} - ${presentLabel} ${preExcusedBadge}</li>`;
-        })
-        .join("");
-      return `
-        <article class="history-card">
-          <h4>${escapeHtml(s.date)} ${s.active ? "(Active)" : ""}</h4>
-          <ul>${rows || "<li>No records.</li>"}</ul>
-        </article>
-      `;
-    })
-    .join("");
 
   appRoot.innerHTML = `
     <section class="admin-grid">
@@ -323,23 +272,15 @@ function renderAdminLayout() {
           <select id="show-select">${showOptions}</select>
           <button id="refresh-show">Refresh</button>
         </div>
-        ${showFormMarkup}
       </aside>
 
       <section class="panel">
         <h2>Rehearsal Page</h2>
-        <p class="muted">Left: cast/crew with advanced info dropdown. Right: active attendance control.</p>
+        <p class="muted">Left: cast/crew list with expandable details. Right: attendance controls and drag/drop groupings.</p>
 
         <div class="split-layout">
           <section>
-            <div class="section-header">
-              <h3>Cast & Crew</h3>
-              <div class="inline-row">
-                <input type="file" id="import-people-csv-file" accept=".csv,text/csv" hidden>
-                <button id="import-people-csv-btn" class="ghost" type="button">Import Student Information CSV</button>
-                <button id="add-person-btn">Add Person</button>
-              </div>
-            </div>
+            <h3>Cast & Crew</h3>
             <h4>Cast</h4>
             <div class="person-list">${castRows || "<p class='muted'>No cast added.</p>"}</div>
             <h4>Crew</h4>
@@ -367,66 +308,11 @@ function renderAdminLayout() {
 
             <section class="block">
               <h4>Groups</h4>
-              <p class="muted">Create/edit/move groupings in cast or crew tabs.</p>
-              <form id="create-group-form" class="stack-form compact">
-                <div class="inline-row">
-                  <input name="name" placeholder="Group name" required>
-                  <select name="type">
-                    <option value="cast">Cast</option>
-                    <option value="crew">Crew</option>
-                  </select>
-                  <button type="submit">Create Group</button>
-                </div>
-              </form>
-              <div id="group-list">${renderGroupList()}</div>
+              <p class="muted">Drag a person row and drop into another group table to rearrange. Attendance status updates here automatically.</p>
+              <div id="group-list">${groupTables}</div>
             </section>
           </section>
         </div>
-
-        <section class="block">
-          <div class="section-header">
-            <h3>Rehearsal Schedule</h3>
-            <button id="toggle-calendar-view" type="button" class="ghost">${state.calendarVisible ? "Hide Calendar View" : "Calendar View"}</button>
-          </div>
-
-          ${renderRehearsalCalendar()}
-
-          <form id="new-rehearsal-form" class="stack-form compact">
-            <div class="inline-row">
-              <input name="date" type="date" required>
-              <input name="start_time" type="time">
-              <input name="end_time" type="time">
-              <button type="submit">Add Rehearsal</button>
-            </div>
-          </form>
-
-          <div class="inline-row">
-            <label>Selected rehearsal</label>
-            <select id="rehearsal-select">${rehearsalOptions}</select>
-          </div>
-
-          <form id="edit-rehearsal-form" class="stack-form compact">
-            <div class="inline-row">
-              <input name="date" type="date" value="${escapeHtml(currentRehearsalValue("date"))}">
-              <input name="start_time" type="time" value="${escapeHtml(currentRehearsalValue("start_time"))}">
-              <input name="end_time" type="time" value="${escapeHtml(currentRehearsalValue("end_time"))}">
-              <button type="submit">Update Rehearsal</button>
-              <button type="button" id="delete-rehearsal" class="danger">Delete</button>
-            </div>
-          </form>
-
-          <section>
-            <h4>Pre-Excused Absences</h4>
-            <p class="muted">Mark students who will be absent ahead of time.</p>
-            <div class="pre-excused-grid">${renderPreExcusedList()}</div>
-            <button id="save-pre-excused">Save Pre-Excused</button>
-          </section>
-        </section>
-
-        <section class="block">
-          <h3>Attendance History</h3>
-          <div class="history-grid">${historyCards || "<p class='muted'>No attendance sessions yet.</p>"}</div>
-        </section>
       </section>
 
       <aside class="show-floating-controls">
@@ -545,6 +431,7 @@ function renderPersonCard(person) {
     <details class="person-card" data-person-id="${person.id}">
       <summary>
         <span>${escapeHtml(fullName(person))}</span>
+        <span class="muted">${escapeHtml(person.type)}</span>
         <span class="muted">${escapeHtml(person.pronouns || "")}</span>
         <span class="pill">${escapeHtml(person.role)}</span>
       </summary>
@@ -555,13 +442,92 @@ function renderPersonCard(person) {
         <p><strong>Guardian:</strong> ${escapeHtml(advanced.guardian_name || "-")}</p>
         <p><strong>Guardian Email:</strong> ${escapeHtml(advanced.guardian_email || "-")}</p>
         <p><strong>Guardian Phone:</strong> ${escapeHtml(advanced.guardian_phone || "-")}</p>
-        <div class="inline-row">
-          <button class="edit-person-btn" data-person-id="${person.id}">Edit</button>
-          <button class="delete-person-btn danger" data-person-id="${person.id}">Delete</button>
-        </div>
       </div>
     </details>
   `;
+}
+
+function attendanceRecordMap() {
+  const map = new Map();
+  (state.attendance && state.attendance.records ? state.attendance.records : []).forEach((r) => {
+    map.set(r.person_id, r);
+  });
+  return map;
+}
+
+function renderGroupTables() {
+  const groups = state.groups || [];
+  const recordByPerson = attendanceRecordMap();
+  const byType = {
+    cast: groups.filter((g) => g.type === "cast"),
+    crew: groups.filter((g) => g.type === "crew")
+  };
+
+  const renderTypeBoard = (type) => {
+    const groupMemberIds = new Set(
+      byType[type].flatMap((g) => (g.members || []).map((m) => m.id))
+    );
+    const ungrouped = state.people
+      .filter((p) => p.type === type && !groupMemberIds.has(p.id))
+      .map((p) => ({ ...p, _groupId: "" }));
+
+    const renderRows = (people, sourceGroupId) => people
+      .map((p) => {
+        const rec = recordByPerson.get(p.id);
+        const status = rec
+          ? (rec.present ? "Present" : (rec.pre_excused ? "Pre-Excused" : "Absent"))
+          : "Not Recording";
+        return `
+          <tr class="group-member-row" draggable="true" data-person-id="${p.id}" data-source-group-id="${sourceGroupId}" data-person-type="${type}">
+            <td>${escapeHtml(fullName(p))}</td>
+            <td>${escapeHtml(p.role)}</td>
+            <td>${escapeHtml(status)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const groupTables = byType[type]
+      .map((g) => {
+        const rows = renderRows(g.members || [], g.id);
+        return `
+          <article class="group-table-card" data-group-id="${g.id}">
+            <h5>${escapeHtml(g.name)}</h5>
+            <table>
+              <thead>
+                <tr><th>Name</th><th>Role</th><th>Status</th></tr>
+              </thead>
+              <tbody class="group-dropzone" data-target-group-id="${g.id}" data-group-type="${type}">
+                ${rows || `<tr class="group-empty-row"><td colspan="3">Drop ${escapeHtml(type)} members here</td></tr>`}
+              </tbody>
+            </table>
+          </article>
+        `;
+      })
+      .join("");
+
+    return `
+      <section class="group-type-section">
+        <h5>${escapeHtml(type === "cast" ? "Cast" : "Crew")} Groupings</h5>
+        <div class="group-table-grid">
+          <article class="group-table-card ungrouped">
+            <h5>Ungrouped ${escapeHtml(type === "cast" ? "Cast" : "Crew")}</h5>
+            <table>
+              <thead>
+                <tr><th>Name</th><th>Role</th><th>Status</th></tr>
+              </thead>
+              <tbody class="group-dropzone" data-target-group-id="" data-group-type="${type}">
+                ${renderRows(ungrouped, "") || `<tr class="group-empty-row"><td colspan="3">No ungrouped members</td></tr>`}
+              </tbody>
+            </table>
+          </article>
+          ${groupTables || `<article class="group-table-card"><h5>No ${escapeHtml(type)} groups</h5><p class="muted">Create groups in setup mode if needed.</p></article>`}
+        </div>
+      </section>
+    `;
+  };
+
+  return `${renderTypeBoard("cast")}${renderTypeBoard("crew")}`;
 }
 
 function renderAttendanceTab(type) {
@@ -693,26 +659,6 @@ function bindAdminEvents() {
     renderAdminLayout();
   });
 
-  document.getElementById("toggle-calendar-view")?.addEventListener("click", () => {
-    state.calendarVisible = !state.calendarVisible;
-    renderAdminLayout();
-  });
-
-  document.getElementById("calendar-size-toggle")?.addEventListener("click", () => {
-    state.calendarMinimized = !state.calendarMinimized;
-    renderAdminLayout();
-  });
-
-  document.getElementById("calendar-prev-month")?.addEventListener("click", () => {
-    state.calendarMonthOffset -= 1;
-    renderAdminLayout();
-  });
-
-  document.getElementById("calendar-next-month")?.addEventListener("click", () => {
-    state.calendarMonthOffset += 1;
-    renderAdminLayout();
-  });
-
   document.getElementById("show-select")?.addEventListener("change", async (ev) => {
     state.selectedShowId = Number(ev.target.value);
     await loadAdminData();
@@ -805,66 +751,6 @@ function bindAdminEvents() {
     }
   });
 
-  document.getElementById("add-person-btn")?.addEventListener("click", () => openPersonModal());
-
-  document.getElementById("import-people-csv-btn")?.addEventListener("click", () => {
-    if (!state.selectedShowId) {
-      notify("Select or create a show first.", true);
-      return;
-    }
-    const fileInput = document.getElementById("import-people-csv-file");
-    if (fileInput) fileInput.click();
-  });
-
-  document.getElementById("import-people-csv-file")?.addEventListener("change", async (ev) => {
-    if (!state.selectedShowId) return;
-    const input = ev.target;
-    const file = input.files && input.files[0] ? input.files[0] : null;
-    if (!file) return;
-
-    const fd = new FormData();
-    fd.append("file", file);
-
-    try {
-      const res = await fetch(`${API.shows}/${state.selectedShowId}/people/import-csv`, {
-        method: "POST",
-        headers: headers(false),
-        body: fd
-      });
-      const payload = await handleResponse(res);
-      await loadAdminData();
-      renderAdminLayout();
-      notify(`CSV import complete: ${payload.imported} added, ${payload.updated} updated, ${payload.skipped} skipped.`);
-    } catch (err) {
-      notify(err.message, true);
-    } finally {
-      input.value = "";
-    }
-  });
-
-  appRoot.querySelectorAll(".edit-person-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const personId = Number(btn.dataset.personId);
-      const person = state.people.find((p) => p.id === personId);
-      if (person) openPersonModal(person);
-    });
-  });
-
-  appRoot.querySelectorAll(".delete-person-btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      if (!confirm("Delete this person?")) return;
-      const personId = Number(btn.dataset.personId);
-      try {
-        await apiDelete(`${API_BASE}/api/admin/people/${personId}`);
-        await loadAdminData();
-        renderAdminLayout();
-        notify("Person deleted.");
-      } catch (err) {
-        notify(err.message, true);
-      }
-    });
-  });
-
   document.getElementById("start-recording")?.addEventListener("click", async () => {
     if (!state.selectedShowId) return;
     try {
@@ -908,6 +794,11 @@ function bindAdminEvents() {
       if (!recordId) return;
       try {
         await apiPatch(`${API_BASE}/api/admin/attendance/records/${recordId}`, { present: input.checked });
+        const rec = (state.attendance && state.attendance.records ? state.attendance.records : []).find((r) => r.id === recordId);
+        if (rec) {
+          rec.present = input.checked ? 1 : 0;
+        }
+        renderAdminLayout();
       } catch (err) {
         notify(err.message, true);
       }
@@ -920,65 +811,18 @@ function bindAdminEvents() {
       if (!recordId) return;
       try {
         await apiPatch(`${API_BASE}/api/admin/attendance/records/${recordId}`, { pre_excused: input.checked });
-      } catch (err) {
-        notify(err.message, true);
-      }
-    });
-  });
-
-  document.getElementById("create-group-form")?.addEventListener("submit", async (ev) => {
-    ev.preventDefault();
-    if (!state.selectedShowId) return;
-    const fd = new FormData(ev.target);
-    const name = String(fd.get("name") || "").trim();
-    const type = String(fd.get("type") || "cast");
-    if (!name) return;
-    try {
-      await apiPost(`${API.shows}/${state.selectedShowId}/groups`, { name, type });
-      await loadAdminData();
-      renderAdminLayout();
-      notify("Group created.");
-    } catch (err) {
-      notify(err.message, true);
-    }
-  });
-
-  appRoot.querySelectorAll(".save-group-btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const groupId = Number(btn.dataset.groupId);
-      const card = btn.closest(".group-card");
-      if (!card) return;
-      const name = card.querySelector(".group-name-input").value.trim();
-      const type = card.querySelector(".group-type-select").value;
-      const memberSelect = card.querySelector(".group-members-select");
-      const memberIds = Array.from(memberSelect.selectedOptions).map((opt) => Number(opt.value));
-      if (!name) return;
-
-      try {
-        await apiPut(`${API_BASE}/api/admin/groups/${groupId}`, { name, type, member_ids: memberIds });
-        await loadAdminData();
+        const rec = (state.attendance && state.attendance.records ? state.attendance.records : []).find((r) => r.id === recordId);
+        if (rec) {
+          rec.pre_excused = input.checked ? 1 : 0;
+        }
         renderAdminLayout();
-        notify("Group updated.");
       } catch (err) {
         notify(err.message, true);
       }
     });
   });
 
-  appRoot.querySelectorAll(".delete-group-btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const groupId = Number(btn.dataset.groupId);
-      if (!confirm("Delete this group?")) return;
-      try {
-        await apiDelete(`${API_BASE}/api/admin/groups/${groupId}`);
-        await loadAdminData();
-        renderAdminLayout();
-        notify("Group deleted.");
-      } catch (err) {
-        notify(err.message, true);
-      }
-    });
-  });
+  bindGroupDragDropEvents();
 
   document.getElementById("new-rehearsal-form")?.addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -1046,6 +890,92 @@ function bindAdminEvents() {
     } catch (err) {
       notify(err.message, true);
     }
+  });
+}
+
+function bindGroupDragDropEvents() {
+  appRoot.querySelectorAll(".group-member-row[draggable='true']").forEach((row) => {
+    row.addEventListener("dragstart", (ev) => {
+      state.dragPayload = {
+        personId: Number(row.dataset.personId),
+        sourceGroupId: row.dataset.sourceGroupId || "",
+        personType: row.dataset.personType || ""
+      };
+      if (ev.dataTransfer) {
+        ev.dataTransfer.effectAllowed = "move";
+      }
+    });
+  });
+
+  appRoot.querySelectorAll(".group-dropzone").forEach((zone) => {
+    zone.addEventListener("dragover", (ev) => {
+      const payload = state.dragPayload;
+      if (!payload) return;
+      if ((zone.dataset.groupType || "") !== payload.personType) return;
+      ev.preventDefault();
+      zone.classList.add("group-dropzone-active");
+    });
+
+    zone.addEventListener("dragleave", () => {
+      zone.classList.remove("group-dropzone-active");
+    });
+
+    zone.addEventListener("drop", async (ev) => {
+      ev.preventDefault();
+      zone.classList.remove("group-dropzone-active");
+      const payload = state.dragPayload;
+      state.dragPayload = null;
+      if (!payload) return;
+
+      const targetGroupId = zone.dataset.targetGroupId || "";
+      const sourceGroupId = payload.sourceGroupId || "";
+      if (targetGroupId === sourceGroupId) return;
+
+      const person = state.people.find((p) => p.id === payload.personId);
+      if (!person) return;
+
+      state.groups.forEach((g) => {
+        g.members = (g.members || []).filter((m) => m.id !== person.id);
+      });
+
+      if (targetGroupId) {
+        const targetGroup = state.groups.find((g) => g.id === Number(targetGroupId));
+        if (targetGroup && targetGroup.type === payload.personType) {
+          targetGroup.members = targetGroup.members || [];
+          if (!targetGroup.members.some((m) => m.id === person.id)) {
+            targetGroup.members.push({
+              id: person.id,
+              first_name: person.first_name,
+              last_name: person.last_name,
+              type: person.type,
+              role: person.role
+            });
+          }
+        }
+      }
+
+      const groupsToSave = [];
+      if (sourceGroupId) groupsToSave.push(Number(sourceGroupId));
+      if (targetGroupId) groupsToSave.push(Number(targetGroupId));
+
+      try {
+        for (const groupId of [...new Set(groupsToSave)]) {
+          const group = state.groups.find((g) => g.id === groupId);
+          if (!group) continue;
+          const memberIds = (group.members || []).map((m) => m.id);
+          await apiPut(`${API_BASE}/api/admin/groups/${groupId}`, {
+            name: group.name,
+            type: group.type,
+            member_ids: memberIds
+          });
+        }
+        renderAdminLayout();
+      } catch (err) {
+        notify(err.message, true);
+        await loadAdminData();
+        renderAdminLayout();
+      }
+    });
   });
 }
 
