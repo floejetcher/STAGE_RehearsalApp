@@ -249,9 +249,6 @@ function renderAdminLayout() {
     .map(renderPersonCard)
     .join("");
 
-  const attendanceCast = renderAttendanceTab("cast");
-  const attendanceCrew = renderAttendanceTab("crew");
-
   const groupTables = renderGroupTables();
 
   const coverPreview = state.showDetail && state.showDetail.cover_image_url
@@ -298,13 +295,6 @@ function renderAdminLayout() {
               <button id="start-recording" ${!todayRehearsal || activeSession ? "disabled" : ""}>Record Attendance</button>
               <button id="stop-recording" class="danger" ${activeSession ? "" : "disabled"}>Stop Recording Attendance</button>
             </div>
-
-            <div class="tabs">
-              <button data-tab="cast" class="tab-btn active">Cast</button>
-              <button data-tab="crew" class="tab-btn">Crew</button>
-            </div>
-            <div id="attendance-tab-cast" class="tab-panel active">${attendanceCast}</div>
-            <div id="attendance-tab-crew" class="tab-panel">${attendanceCrew}</div>
 
             <section class="block">
               <h4>Groups</h4>
@@ -660,7 +650,6 @@ function renderPersonCard(person) {
     <details class="person-card" data-person-id="${person.id}">
       <summary>
         <span>${escapeHtml(fullName(person))}</span>
-        <span class="muted">${escapeHtml(person.type)}</span>
         <span class="muted">${escapeHtml(person.pronouns || "")}</span>
         <span class="pill">${escapeHtml(person.role)}</span>
       </summary>
@@ -1152,51 +1141,6 @@ function bindAdminEvents() {
     } catch (err) {
       notify(err.message, true);
     }
-  });
-
-  appRoot.querySelectorAll(".tab-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      appRoot.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      const tab = btn.dataset.tab;
-      appRoot.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
-      const panel = document.getElementById(`attendance-tab-${tab}`);
-      if (panel) panel.classList.add("active");
-    });
-  });
-
-  appRoot.querySelectorAll(".present-toggle").forEach((input) => {
-    input.addEventListener("change", async () => {
-      const recordId = Number(input.dataset.recordId);
-      if (!recordId) return;
-      try {
-        await apiPatch(`${API_BASE}/api/admin/attendance/records/${recordId}`, { present: input.checked });
-        const rec = (state.attendance && state.attendance.records ? state.attendance.records : []).find((r) => r.id === recordId);
-        if (rec) {
-          rec.present = input.checked ? 1 : 0;
-        }
-        renderAdminLayout();
-      } catch (err) {
-        notify(err.message, true);
-      }
-    });
-  });
-
-  appRoot.querySelectorAll(".preexcused-toggle").forEach((input) => {
-    input.addEventListener("change", async () => {
-      const recordId = Number(input.dataset.recordId);
-      if (!recordId) return;
-      try {
-        await apiPatch(`${API_BASE}/api/admin/attendance/records/${recordId}`, { pre_excused: input.checked });
-        const rec = (state.attendance && state.attendance.records ? state.attendance.records : []).find((r) => r.id === recordId);
-        if (rec) {
-          rec.pre_excused = input.checked ? 1 : 0;
-        }
-        renderAdminLayout();
-      } catch (err) {
-        notify(err.message, true);
-      }
-    });
   });
 
   bindGroupDragDropEvents();

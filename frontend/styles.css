@@ -456,10 +456,11 @@ th {
 
 .show-floating-controls {
   position: fixed;
-  left: 16px;
-  right: auto;
+  right: 16px;
+  left: auto;
   bottom: 16px;
   width: min(260px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
   z-index: 40;
 }
 
@@ -470,17 +471,22 @@ th {
 
 .show-cover-preview {
   width: 100%;
-  aspect-ratio: 3 / 4;
+  min-height: 220px;
+  max-height: calc(100vh - 230px);
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid rgba(124, 58, 237, 0.28);
   background: linear-gradient(145deg, rgba(79, 70, 229, 0.35), rgba(124, 58, 237, 0.2));
+  display: grid;
+  place-items: center;
 }
 
 .show-cover-preview img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
   display: block;
 }
 
