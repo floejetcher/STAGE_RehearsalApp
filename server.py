@@ -306,11 +306,36 @@ def show_detail(_user, show_id):
         rehearsal_db.execute("DELETE FROM shows WHERE id = ?", (show_id,))
         return jsonify({"ok": True})
 
-    data = request.get_json(silent=True) or {}
-    name = str(data.get("name", "")).strip()
+    is_multipart = (request.content_type or "").lower().startswith("multipart/form-data")
+    if is_multipart:
+        name = str(request.form.get("name", "")).strip()
+        upload = request.files.get("cover_image")
+    else:
+        data = request.get_json(silent=True) or {}
+        name = str(data.get("name", "")).strip()
+        upload = None
+
     if not name:
         return jsonify({"error": "name is required"}), 400
-    rehearsal_db.execute("UPDATE shows SET name = ? WHERE id = ?", (name, show_id))
+
+    sql = "UPDATE shows SET name = ?"
+    params = [name]
+    if upload and upload.filename:
+        safe_name = secure_filename(upload.filename)
+        if not safe_name:
+            return jsonify({"error": "invalid cover image filename"}), 400
+        ext = os.path.splitext(safe_name)[1].lower()
+        if ext not in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
+            return jsonify({"error": "cover image must be png, jpg, jpeg, webp, or gif"}), 400
+        cover_filename = f"{uuid.uuid4().hex}{ext}"
+        upload.save(os.path.join(SHOW_COVERS_FOLDER, cover_filename))
+        sql += ", cover_image = ?"
+        params.append(cover_filename)
+
+    sql += " WHERE id = ?"
+    params.append(show_id)
+    rehearsal_db.execute(sql, tuple(params))
+
     row = rehearsal_db.fetch_one("SELECT id, name, cover_image, created_at FROM shows WHERE id = ?", (show_id,))
     row["cover_image_url"] = _show_cover_url(row.get("cover_image") or "")
     return jsonify(row)

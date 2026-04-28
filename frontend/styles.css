@@ -403,6 +403,65 @@ th {
   justify-content: flex-end;
 }
 
+.show-floating-controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: min(260px, calc(100vw - 32px));
+  z-index: 40;
+}
+
+.show-cover-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.show-cover-preview {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(124, 58, 237, 0.28);
+  background: linear-gradient(145deg, rgba(79, 70, 229, 0.35), rgba(124, 58, 237, 0.2));
+}
+
+.show-cover-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.calendar-panel {
+  margin-bottom: 12px;
+}
+
+.calendar-grid {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.calendar-cell {
+  min-height: 42px;
+  border: 1px solid rgba(79, 70, 229, 0.2);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 14, 40, 0.6);
+}
+
+.calendar-cell.has-rehearsal {
+  border-color: rgba(124, 58, 237, 0.75);
+  background: rgba(124, 58, 237, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.35);
+}
+
+.calendar-cell.empty {
+  opacity: 0.35;
+}
+
 .catalog-grid {
   margin-top: 14px;
   display: grid;
@@ -554,6 +613,12 @@ th {
 
   .sidebar-panel {
     position: static;
+  }
+
+  .show-floating-controls {
+    position: static;
+    width: 100%;
+    margin-top: 12px;
   }
 }
 

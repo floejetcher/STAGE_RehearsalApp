@@ -14,6 +14,9 @@ const appRoot = document.getElementById("app");
 const state = {
   mode: location.pathname.startsWith("/student") ? "student" : "admin",
   adminScreen: "catalog",
+  calendarVisible: false,
+  calendarMinimized: false,
+  calendarMonthOffset: 0,
   token: localStorage.getItem("stage_admin_token") || "",
   me: null,
   shows: [],
@@ -252,6 +255,42 @@ function renderAdminLayout() {
     .map((r) => `<option value="${r.id}" ${r.id === state.selectedRehearsalId ? "selected" : ""}>${escapeHtml(r.date)} ${escapeHtml(r.start_time || "")}-${escapeHtml(r.end_time || "")}</option>`)
     .join("");
 
+  const isEditingShow = !!state.showDetail;
+  const showFormMarkup = isEditingShow
+    ? `
+      <form id="edit-show-form" class="stack-form compact">
+        <label>
+          Edit Show Name
+          <input name="name" value="${escapeHtml(state.showDetail ? state.showDetail.name : "")}" required>
+        </label>
+        <label>
+          Edit Cover Image
+          <input name="cover_image" type="file" accept=".png,.jpg,.jpeg,.webp,.gif">
+        </label>
+        <div class="inline-row">
+          <button type="submit">Save</button>
+          <button type="button" id="delete-show" class="danger">Delete Show</button>
+        </div>
+      </form>
+    `
+    : `
+      <form id="new-show-form" class="stack-form compact">
+        <label>
+          New Show Name
+          <input name="name" required>
+        </label>
+        <label>
+          Cover Image (optional)
+          <input name="cover_image" type="file" accept=".png,.jpg,.jpeg,.webp,.gif">
+        </label>
+        <button type="submit">Create Show</button>
+      </form>
+    `;
+
+  const coverPreview = state.showDetail && state.showDetail.cover_image_url
+    ? `<img src="${escapeHtml(state.showDetail.cover_image_url)}" alt="${escapeHtml(state.showDetail.name)} cover">`
+    : `<div class="catalog-placeholder">${escapeHtml((state.showDetail && state.showDetail.name ? state.showDetail.name : "S").slice(0, 1).toUpperCase())}</div>`;
+
   const historyCards = state.history
     .map((s) => {
       const rows = (s.records || [])
@@ -275,7 +314,7 @@ function renderAdminLayout() {
       <aside class="panel sidebar-panel">
         <div class="section-header">
           <h2>Admin View</h2>
-          <button id="back-to-catalog" class="ghost" type="button">Show Catalog</button>
+          <button id="back-to-catalog" class="ghost" type="button">Back to Catalog</button>
         </div>
         <p class="muted">Signed in as ${escapeHtml(state.me.username)} (${escapeHtml(state.me.role)})</p>
 
@@ -284,31 +323,7 @@ function renderAdminLayout() {
           <select id="show-select">${showOptions}</select>
           <button id="refresh-show">Refresh</button>
         </div>
-
-        <form id="new-show-form" class="stack-form compact">
-          <label>
-            New Show Name
-            <input name="name" required>
-          </label>
-          <label>
-            Cover Image (optional)
-            <input name="cover_image" type="file" accept=".png,.jpg,.jpeg,.webp,.gif">
-          </label>
-          <button type="submit">Create Show</button>
-        </form>
-
-        <form id="edit-show-form" class="stack-form compact">
-          <label>
-            Rename Current Show
-            <input name="name" value="${escapeHtml(state.showDetail ? state.showDetail.name : "")}" required>
-          </label>
-          <div class="inline-row">
-            <button type="submit">Save Name</button>
-            <button type="button" id="delete-show" class="danger">Delete Show</button>
-          </div>
-        </form>
-
-        <button id="logout-btn" class="ghost">Log Out</button>
+        ${showFormMarkup}
       </aside>
 
       <section class="panel">
@@ -369,7 +384,13 @@ function renderAdminLayout() {
         </div>
 
         <section class="block">
-          <h3>Rehearsal Schedule</h3>
+          <div class="section-header">
+            <h3>Rehearsal Schedule</h3>
+            <button id="toggle-calendar-view" type="button" class="ghost">${state.calendarVisible ? "Hide Calendar View" : "Calendar View"}</button>
+          </div>
+
+          ${renderRehearsalCalendar()}
+
           <form id="new-rehearsal-form" class="stack-form compact">
             <div class="inline-row">
               <input name="date" type="date" required>
@@ -407,12 +428,65 @@ function renderAdminLayout() {
           <div class="history-grid">${historyCards || "<p class='muted'>No attendance sessions yet.</p>"}</div>
         </section>
       </section>
+
+      <aside class="show-floating-controls">
+        <div class="show-cover-panel panel">
+          <h4>${escapeHtml(state.showDetail ? state.showDetail.name : "Selected Show")}</h4>
+          <div class="show-cover-preview">${coverPreview}</div>
+          <button id="logout-btn" class="ghost">Log Out</button>
+        </div>
+      </aside>
     </section>
 
     <div id="modal-root"></div>
   `;
 
   bindAdminEvents();
+}
+
+function renderRehearsalCalendar() {
+  if (!state.calendarVisible) return "";
+
+  const baseDate = state.selectedRehearsalId
+    ? new Date(`${(currentRehearsal() || {}).date || state.todayDate}T00:00:00`)
+    : new Date(`${state.todayDate}T00:00:00`);
+  if (Number.isNaN(baseDate.getTime())) return "";
+
+  const viewDate = new Date(baseDate.getFullYear(), baseDate.getMonth() + state.calendarMonthOffset, 1);
+  const year = viewDate.getFullYear();
+  const month = viewDate.getMonth();
+
+  const firstDay = new Date(year, month, 1);
+  const startWeekday = firstDay.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const rehearsalDates = new Set((state.rehearsals || []).map((r) => r.date));
+
+  const cells = [];
+  for (let i = 0; i < startWeekday; i += 1) {
+    cells.push('<div class="calendar-cell empty"></div>');
+  }
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const hasRehearsal = rehearsalDates.has(iso);
+    cells.push(`<div class="calendar-cell ${hasRehearsal ? "has-rehearsal" : ""}"><span>${day}</span></div>`);
+  }
+
+  const monthLabel = viewDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  return `
+    <section class="calendar-panel panel">
+      <div class="section-header">
+        <h4>Calendar View</h4>
+        <div class="inline-row">
+          <button id="calendar-prev-month" type="button" class="ghost">Prev</button>
+          <button id="calendar-next-month" type="button" class="ghost">Next</button>
+          <button id="calendar-size-toggle" type="button" class="ghost">${state.calendarMinimized ? "Maximize" : "Minimize"}</button>
+        </div>
+      </div>
+      <p class="muted">${escapeHtml(monthLabel)}</p>
+      ${state.calendarMinimized ? "" : `<div class="calendar-grid">${cells.join("")}</div>`}
+    </section>
+  `;
 }
 
 function renderShowCatalog() {
@@ -576,6 +650,9 @@ function bindAdminEvents() {
   document.getElementById("catalog-create-show-btn")?.addEventListener("click", async () => {
     state.adminScreen = "workspace";
     state.selectedShowId = null;
+    state.calendarVisible = false;
+    state.calendarMinimized = false;
+    state.calendarMonthOffset = 0;
     await loadAdminData();
     renderAdminLayout();
   });
@@ -599,6 +676,9 @@ function bindAdminEvents() {
     btn.addEventListener("click", async () => {
       state.selectedShowId = Number(btn.dataset.showId);
       state.adminScreen = "workspace";
+      state.calendarVisible = false;
+      state.calendarMinimized = false;
+      state.calendarMonthOffset = 0;
       await loadAdminData();
       renderAdminLayout();
     });
@@ -606,7 +686,30 @@ function bindAdminEvents() {
 
   document.getElementById("back-to-catalog")?.addEventListener("click", async () => {
     state.adminScreen = "catalog";
+    state.calendarVisible = false;
+    state.calendarMinimized = false;
+    state.calendarMonthOffset = 0;
     await loadAdminData();
+    renderAdminLayout();
+  });
+
+  document.getElementById("toggle-calendar-view")?.addEventListener("click", () => {
+    state.calendarVisible = !state.calendarVisible;
+    renderAdminLayout();
+  });
+
+  document.getElementById("calendar-size-toggle")?.addEventListener("click", () => {
+    state.calendarMinimized = !state.calendarMinimized;
+    renderAdminLayout();
+  });
+
+  document.getElementById("calendar-prev-month")?.addEventListener("click", () => {
+    state.calendarMonthOffset -= 1;
+    renderAdminLayout();
+  });
+
+  document.getElementById("calendar-next-month")?.addEventListener("click", () => {
+    state.calendarMonthOffset += 1;
     renderAdminLayout();
   });
 
@@ -665,9 +768,21 @@ function bindAdminEvents() {
     if (!state.selectedShowId) return;
     const fd = new FormData(ev.target);
     const name = String(fd.get("name") || "").trim();
+    const coverImage = fd.get("cover_image");
     if (!name) return;
     try {
-      await apiPut(`${API.shows}/${state.selectedShowId}`, { name });
+      const payload = new FormData();
+      payload.append("name", name);
+      if (coverImage && typeof coverImage === "object" && coverImage.size > 0) {
+        payload.append("cover_image", coverImage);
+      }
+
+      const res = await fetch(`${API.shows}/${state.selectedShowId}`, {
+        method: "PUT",
+        headers: headers(false),
+        body: payload
+      });
+      await handleResponse(res);
       await loadAdminData();
       renderAdminLayout();
       notify("Show updated.");
