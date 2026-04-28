@@ -97,11 +97,17 @@ body {
 
 .panel.narrow {
   max-width: 360px;
-  margin: 14vh auto 0;
+  margin: 0 auto;
 }
 
 .admin-login-card {
   padding: 14px;
+}
+
+.auth-shell {
+  min-height: calc(100vh - 180px);
+  display: grid;
+  place-items: center;
 }
 
 .admin-grid {
@@ -670,6 +676,10 @@ th {
 @media (max-width: 820px) {
   body {
     padding: 10px;
+  }
+
+  .auth-shell {
+    min-height: calc(100vh - 150px);
   }
 
   .catalog-header {
