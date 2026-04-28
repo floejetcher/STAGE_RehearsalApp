@@ -213,6 +213,11 @@ function renderAdminLayout() {
     return;
   }
 
+  if (state.adminScreen === "setup") {
+    renderShowSetup();
+    return;
+  }
+
   const showOptions = state.shows
     .map((s) => `<option value="${s.id}" ${s.id === state.selectedShowId ? "selected" : ""}>${escapeHtml(s.name)}</option>`)
     .join("");
@@ -308,6 +313,39 @@ function renderAdminLayout() {
     </section>
 
     <div id="modal-root"></div>
+  `;
+
+  bindAdminEvents();
+}
+
+function renderShowSetup() {
+  appRoot.innerHTML = `
+    <section class="panel catalog-panel">
+      <div class="section-header">
+        <div>
+          <h2>Create Show</h2>
+          <p class="muted">Add a new show name and optional cover image.</p>
+        </div>
+        <div class="inline-row">
+          <button id="setup-back-to-catalog" class="ghost" type="button">Back to Catalog</button>
+          <button id="setup-logout-btn" class="ghost" type="button">Log Out</button>
+        </div>
+      </div>
+
+      <section class="panel narrow admin-login-card">
+        <form id="new-show-form" class="stack-form compact">
+          <label>
+            New Show Name
+            <input name="name" required>
+          </label>
+          <label>
+            Cover Image (optional)
+            <input name="cover_image" type="file" accept=".png,.jpg,.jpeg,.webp,.gif">
+          </label>
+          <button type="submit">Create Show</button>
+        </form>
+      </section>
+    </section>
   `;
 
   bindAdminEvents();
@@ -597,7 +635,7 @@ function renderPreExcusedList() {
 
 function bindAdminEvents() {
   document.getElementById("catalog-create-show-btn")?.addEventListener("click", async () => {
-    state.adminScreen = "workspace";
+    state.adminScreen = "setup";
     state.selectedShowId = null;
     state.calendarVisible = false;
     state.calendarMinimized = false;
@@ -640,6 +678,22 @@ function bindAdminEvents() {
     state.calendarMonthOffset = 0;
     await loadAdminData();
     renderAdminLayout();
+  });
+
+  document.getElementById("setup-back-to-catalog")?.addEventListener("click", async () => {
+    state.adminScreen = "catalog";
+    await loadAdminData();
+    renderAdminLayout();
+  });
+
+  document.getElementById("setup-logout-btn")?.addEventListener("click", async () => {
+    try {
+      await apiPost(API.adminLogout, {});
+    } catch (_err) {
+      // Ignore logout API failures and clear local session anyway.
+    }
+    clearSession();
+    renderAdmin();
   });
 
   document.getElementById("show-select")?.addEventListener("change", async (ev) => {
