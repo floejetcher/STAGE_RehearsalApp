@@ -246,13 +246,21 @@ label {
 
 .split-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(min-content, max-content) minmax(0, 1fr);
   gap: 12px;
+  align-items: start;
+}
+
+.split-layout > section:first-child {
+  width: max-content;
+  max-width: min(100%, 44ch);
 }
 
 .person-list {
   display: grid;
   gap: 8px;
+  width: max-content;
+  max-width: 100%;
 }
 
 .person-card {
@@ -269,7 +277,11 @@ label {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+}
+
+.person-card summary > span:first-child {
+  white-space: nowrap;
 }
 
 .person-card summary::-webkit-details-marker {
@@ -282,6 +294,7 @@ label {
 
 .person-body p {
   margin: 6px 0;
+  overflow-wrap: anywhere;
 }
 
 .pill {
