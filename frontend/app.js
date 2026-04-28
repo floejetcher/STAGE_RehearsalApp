@@ -375,6 +375,56 @@ function renderShowEditScreen() {
     return;
   }
 
+  const rehearsalRows = (state.rehearsals || [])
+    .map((r) => `
+      <form class="rehearsal-row-form panel" data-rehearsal-id="${r.id}">
+        <div class="inline-row">
+          <label>Date<input name="date" type="date" value="${escapeHtml(r.date || "")}" required></label>
+          <label>Start<input name="start_time" type="time" value="${escapeHtml(r.start_time || "")}"></label>
+          <label>End<input name="end_time" type="time" value="${escapeHtml(r.end_time || "")}"></label>
+        </div>
+        <div class="inline-row">
+          <button type="submit">Save Rehearsal</button>
+          <button type="button" class="danger delete-rehearsal-row-btn" data-rehearsal-id="${r.id}">Delete</button>
+        </div>
+      </form>
+    `)
+    .join("");
+
+  const castRows = (state.people || [])
+    .filter((p) => p.type === "cast")
+    .map((p) => `
+      <tr>
+        <td>${escapeHtml(fullName(p))}</td>
+        <td>${escapeHtml(p.role)}</td>
+        <td>${escapeHtml(p.pronouns || "-")}</td>
+        <td>
+          <div class="inline-row">
+            <button type="button" class="edit-person-btn" data-person-id="${p.id}">Edit</button>
+            <button type="button" class="danger delete-person-btn" data-person-id="${p.id}">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `)
+    .join("");
+
+  const crewRows = (state.people || [])
+    .filter((p) => p.type === "crew")
+    .map((p) => `
+      <tr>
+        <td>${escapeHtml(fullName(p))}</td>
+        <td>${escapeHtml(p.role)}</td>
+        <td>${escapeHtml(p.pronouns || "-")}</td>
+        <td>
+          <div class="inline-row">
+            <button type="button" class="edit-person-btn" data-person-id="${p.id}">Edit</button>
+            <button type="button" class="danger delete-person-btn" data-person-id="${p.id}">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `)
+    .join("");
+
   appRoot.innerHTML = `
     <section class="panel catalog-panel">
       <div class="section-header">
@@ -404,19 +454,83 @@ function renderShowEditScreen() {
           </div>
         </form>
       </section>
+
+      <section class="panel">
+        <div class="section-header">
+          <h3>Rehearsals</h3>
+        </div>
+        <form id="new-rehearsal-form" class="stack-form compact">
+          <div class="inline-row">
+            <label>Date<input name="date" type="date" required></label>
+            <label>Start<input name="start_time" type="time"></label>
+            <label>End<input name="end_time" type="time"></label>
+          </div>
+          <button type="submit">Add Rehearsal</button>
+        </form>
+        <div class="stack-form compact">${rehearsalRows || "<p class='muted'>No rehearsals added yet.</p>"}</div>
+      </section>
+
+      <section class="panel">
+        <div class="section-header">
+          <h3>Cast & Crew Members</h3>
+          <div class="inline-row">
+            <button id="add-cast-member" type="button">Add Cast Member</button>
+            <button id="add-crew-member" type="button">Add Crew Member</button>
+          </div>
+        </div>
+
+        <div class="split-layout">
+          <section>
+            <h4>Cast CSV Import</h4>
+            <form id="import-cast-csv-form" class="stack-form compact">
+              <label>Cast CSV
+                <input name="cast_csv" type="file" accept=".csv,text/csv" required>
+              </label>
+              <button type="submit">Import Cast CSV</button>
+            </form>
+
+            <h4>Cast Members</h4>
+            <table>
+              <thead><tr><th>Name</th><th>Role</th><th>Pronouns</th><th>Actions</th></tr></thead>
+              <tbody>${castRows || "<tr><td colspan='4'>No cast members.</td></tr>"}</tbody>
+            </table>
+          </section>
+
+          <section>
+            <h4>Crew CSV Import</h4>
+            <form id="import-crew-csv-form" class="stack-form compact">
+              <label>Crew CSV
+                <input name="crew_csv" type="file" accept=".csv,text/csv" required>
+              </label>
+              <button type="submit">Import Crew CSV</button>
+            </form>
+
+            <h4>Crew Members</h4>
+            <table>
+              <thead><tr><th>Name</th><th>Role</th><th>Pronouns</th><th>Actions</th></tr></thead>
+              <tbody>${crewRows || "<tr><td colspan='4'>No crew members.</td></tr>"}</tbody>
+            </table>
+          </section>
+        </div>
+      </section>
     </section>
+
+    <div id="modal-root"></div>
   `;
 
   bindAdminEvents();
 }
 
-async function importCsvForShow(showId, csvFile) {
+async function importCsvForShow(showId, csvFile, personType = "") {
   if (!csvFile || typeof csvFile !== "object" || csvFile.size <= 0) {
     return null;
   }
 
   const csvPayload = new FormData();
   csvPayload.append("file", csvFile);
+  if (personType) {
+    csvPayload.append("person_type", personType);
+  }
   const res = await fetch(`${API.shows}/${showId}/people/import-csv`, {
     method: "POST",
     headers: headers(false),
@@ -906,6 +1020,109 @@ function bindAdminEvents() {
       await loadAdminData();
       renderAdminLayout();
       notify("Show deleted.");
+    } catch (err) {
+      notify(err.message, true);
+    }
+  });
+
+  appRoot.querySelectorAll(".rehearsal-row-form").forEach((form) => {
+    form.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const rehearsalId = Number(form.dataset.rehearsalId);
+      if (!rehearsalId) return;
+      const fd = new FormData(form);
+      try {
+        await apiPut(`${API_BASE}/api/admin/rehearsals/${rehearsalId}`, {
+          date: String(fd.get("date") || ""),
+          start_time: String(fd.get("start_time") || ""),
+          end_time: String(fd.get("end_time") || "")
+        });
+        await loadAdminData();
+        renderAdminLayout();
+        notify("Rehearsal updated.");
+      } catch (err) {
+        notify(err.message, true);
+      }
+    });
+  });
+
+  appRoot.querySelectorAll(".delete-rehearsal-row-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const rehearsalId = Number(btn.dataset.rehearsalId);
+      if (!rehearsalId) return;
+      if (!confirm("Delete this rehearsal?")) return;
+      try {
+        await apiDelete(`${API_BASE}/api/admin/rehearsals/${rehearsalId}`);
+        if (state.selectedRehearsalId === rehearsalId) {
+          state.selectedRehearsalId = null;
+        }
+        await loadAdminData();
+        renderAdminLayout();
+        notify("Rehearsal deleted.");
+      } catch (err) {
+        notify(err.message, true);
+      }
+    });
+  });
+
+  document.getElementById("add-cast-member")?.addEventListener("click", () => {
+    openPersonModal({ first_name: "", last_name: "", pronouns: "", role: "", type: "cast", advanced: {} });
+  });
+
+  document.getElementById("add-crew-member")?.addEventListener("click", () => {
+    openPersonModal({ first_name: "", last_name: "", pronouns: "", role: "", type: "crew", advanced: {} });
+  });
+
+  appRoot.querySelectorAll(".edit-person-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const personId = Number(btn.dataset.personId);
+      const person = state.people.find((p) => p.id === personId);
+      if (!person) return;
+      openPersonModal(person);
+    });
+  });
+
+  appRoot.querySelectorAll(".delete-person-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const personId = Number(btn.dataset.personId);
+      if (!personId) return;
+      if (!confirm("Delete this person?")) return;
+      try {
+        await apiDelete(`${API_BASE}/api/admin/people/${personId}`);
+        await loadAdminData();
+        renderAdminLayout();
+        notify("Person deleted.");
+      } catch (err) {
+        notify(err.message, true);
+      }
+    });
+  });
+
+  document.getElementById("import-cast-csv-form")?.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    if (!state.selectedShowId) return;
+    const fd = new FormData(ev.target);
+    const castFile = fd.get("cast_csv");
+    try {
+      const result = await importCsvForShow(state.selectedShowId, castFile, "cast");
+      await loadAdminData();
+      renderAdminLayout();
+      notify(`Cast CSV imported ${result.imported}, updated ${result.updated}, skipped ${result.skipped}.`);
+    } catch (err) {
+      notify(err.message, true);
+    }
+  });
+
+  document.getElementById("import-crew-csv-form")?.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    if (!state.selectedShowId) return;
+    const fd = new FormData(ev.target);
+    const crewFile = fd.get("crew_csv");
+    try {
+      const result = await importCsvForShow(state.selectedShowId, crewFile, "crew");
+      await loadAdminData();
+      renderAdminLayout();
+      notify(`Crew CSV imported ${result.imported}, updated ${result.updated}, skipped ${result.skipped}.`);
     } catch (err) {
       notify(err.message, true);
     }

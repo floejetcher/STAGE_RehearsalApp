@@ -551,6 +551,10 @@ def import_people_csv(_user, show_id):
     if not reader.fieldnames:
         return jsonify({"error": "CSV header row is missing"}), 400
 
+    forced_type = str(request.form.get("person_type", "")).strip().lower()
+    if forced_type and forced_type not in {"cast", "crew"}:
+        return jsonify({"error": "person_type must be cast or crew"}), 400
+
     imported = 0
     updated = 0
     skipped = 0
@@ -566,7 +570,7 @@ def import_people_csv(_user, show_id):
         guardian_name = _csv_value(row, "Name & Pronouns W/ Family", "Guardian Name")
         guardian_email = _csv_value(row, "Guardian Email")
         guardian_phone = _csv_value(row, "Guardian Cell Phone", "Guardian Phone")
-        person_type = _infer_person_type(_csv_value(row, "Type", "Cast/Crew"), role)
+        person_type = forced_type or _infer_person_type(_csv_value(row, "Type", "Cast/Crew"), role)
 
         # Ignore blank or footer rows from template files.
         if not any(
