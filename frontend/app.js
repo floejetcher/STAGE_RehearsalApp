@@ -308,7 +308,11 @@ function renderAdminLayout() {
           <section>
             <div class="section-header">
               <h3>Cast & Crew</h3>
-              <button id="add-person-btn">Add Person</button>
+              <div class="inline-row">
+                <input type="file" id="import-people-csv-file" accept=".csv,text/csv" hidden>
+                <button id="import-people-csv-btn" class="ghost" type="button">Import Student Information CSV</button>
+                <button id="add-person-btn">Add Person</button>
+              </div>
             </div>
             <h4>Cast</h4>
             <div class="person-list">${castRows || "<p class='muted'>No cast added.</p>"}</div>
@@ -585,6 +589,41 @@ function bindAdminEvents() {
   });
 
   document.getElementById("add-person-btn")?.addEventListener("click", () => openPersonModal());
+
+  document.getElementById("import-people-csv-btn")?.addEventListener("click", () => {
+    if (!state.selectedShowId) {
+      notify("Select or create a show first.", true);
+      return;
+    }
+    const fileInput = document.getElementById("import-people-csv-file");
+    if (fileInput) fileInput.click();
+  });
+
+  document.getElementById("import-people-csv-file")?.addEventListener("change", async (ev) => {
+    if (!state.selectedShowId) return;
+    const input = ev.target;
+    const file = input.files && input.files[0] ? input.files[0] : null;
+    if (!file) return;
+
+    const fd = new FormData();
+    fd.append("file", file);
+
+    try {
+      const res = await fetch(`${API.shows}/${state.selectedShowId}/people/import-csv`, {
+        method: "POST",
+        headers: headers(false),
+        body: fd
+      });
+      const payload = await handleResponse(res);
+      await loadAdminData();
+      renderAdminLayout();
+      notify(`CSV import complete: ${payload.imported} added, ${payload.updated} updated, ${payload.skipped} skipped.`);
+    } catch (err) {
+      notify(err.message, true);
+    } finally {
+      input.value = "";
+    }
+  });
 
   appRoot.querySelectorAll(".edit-person-btn").forEach((btn) => {
     btn.addEventListener("click", () => {

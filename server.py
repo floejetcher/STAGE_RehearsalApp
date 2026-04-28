@@ -2,6 +2,8 @@ import json
 import os
 import time
 import uuid
+import csv
+import io
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
@@ -142,6 +144,40 @@ def _show_exists(show_id: int) -> bool:
 def _rehearsal_exists(rehearsal_id: int) -> bool:
     row = rehearsal_db.fetch_one("SELECT id FROM rehearsals WHERE id = ?", (rehearsal_id,))
     return bool(row)
+
+
+def _infer_person_type(raw_type: str, role: str) -> str:
+    type_value = (raw_type or "").strip().lower()
+    if type_value in {"cast", "crew"}:
+        return type_value
+
+    role_value = (role or "").strip().lower()
+    crew_keywords = {
+        "crew",
+        "stage manager",
+        "assistant stage manager",
+        "director",
+        "music director",
+        "choreographer",
+        "sound",
+        "light",
+        "lighting",
+        "tech",
+        "costume",
+        "makeup",
+        "props",
+        "set",
+    }
+    if any(keyword in role_value for keyword in crew_keywords):
+        return "crew"
+    return "cast"
+
+
+def _csv_value(row: dict, *keys: str) -> str:
+    for key in keys:
+        if key in row and row[key] is not None:
+            return str(row[key]).strip()
+    return ""
 
 
 @app.route("/api/admin/login", methods=["POST"])
@@ -419,6 +455,142 @@ def people(_user, show_id):
         (person_id,),
     )
     return jsonify(_serialize_person_with_advanced(row)), 201
+
+
+@app.route("/api/admin/shows/<int:show_id>/people/import-csv", methods=["POST"])
+@require_admin
+def import_people_csv(_user, show_id):
+    if not _show_exists(show_id):
+        return jsonify({"error": "show not found"}), 404
+
+    upload = request.files.get("file")
+    if not upload:
+        return jsonify({"error": "file is required"}), 400
+
+    raw_bytes = upload.read()
+    if not raw_bytes:
+        return jsonify({"error": "file is empty"}), 400
+
+    try:
+        csv_text = raw_bytes.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            csv_text = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            return jsonify({"error": "CSV must be UTF-8 encoded"}), 400
+
+    reader = csv.DictReader(io.StringIO(csv_text))
+    if not reader.fieldnames:
+        return jsonify({"error": "CSV header row is missing"}), 400
+
+    imported = 0
+    updated = 0
+    skipped = 0
+
+    for row in reader:
+        first_name = _csv_value(row, "First Name", "FirstName")
+        last_name = _csv_value(row, "Last Name", "LastName")
+        pronouns = _csv_value(row, "Pronouns")
+        role = _csv_value(row, "Role")
+        email = _csv_value(row, "Email")
+        grade = _csv_value(row, "Grade")
+        phone = _csv_value(row, "Phone Number", "Phone")
+        guardian_name = _csv_value(row, "Name & Pronouns W/ Family", "Guardian Name")
+        guardian_email = _csv_value(row, "Guardian Email")
+        guardian_phone = _csv_value(row, "Guardian Cell Phone", "Guardian Phone")
+        person_type = _infer_person_type(_csv_value(row, "Type", "Cast/Crew"), role)
+
+        # Ignore blank or footer rows from template files.
+        if not any(
+            [
+                first_name,
+                last_name,
+                pronouns,
+                role,
+                email,
+                grade,
+                phone,
+                guardian_email,
+                guardian_phone,
+            ]
+        ):
+            continue
+
+        if (first_name or last_name).lower() == "important":
+            continue
+
+        if not first_name or not last_name:
+            skipped += 1
+            continue
+
+        if not role:
+            role = "Unassigned"
+
+        existing = rehearsal_db.fetch_one(
+            """
+            SELECT id FROM people
+            WHERE show_id = ? AND first_name = ? AND last_name = ? AND type = ?
+            LIMIT 1
+            """,
+            (show_id, first_name, last_name, person_type),
+        )
+
+        if existing:
+            rehearsal_db.with_transaction(
+                [
+                    {
+                        "sql": "UPDATE people SET pronouns = ?, role = ? WHERE id = ?",
+                        "params": (pronouns, role, existing["id"]),
+                    },
+                    {
+                        "sql": """
+                            INSERT INTO advanced_info(person_id, phone, email, grade, guardian_name, guardian_email, guardian_phone)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            ON CONFLICT(person_id) DO UPDATE SET
+                                phone = excluded.phone,
+                                email = excluded.email,
+                                grade = excluded.grade,
+                                guardian_name = excluded.guardian_name,
+                                guardian_email = excluded.guardian_email,
+                                guardian_phone = excluded.guardian_phone
+                        """,
+                        "params": (
+                            existing["id"],
+                            phone,
+                            email,
+                            grade,
+                            guardian_name,
+                            guardian_email,
+                            guardian_phone,
+                        ),
+                    },
+                ]
+            )
+            updated += 1
+            continue
+
+        person_id = rehearsal_db.execute(
+            "INSERT INTO people(show_id, first_name, last_name, pronouns, role, type) VALUES (?, ?, ?, ?, ?, ?)",
+            (show_id, first_name, last_name, pronouns, role, person_type),
+        )
+        rehearsal_db.execute(
+            """
+            INSERT INTO advanced_info(person_id, phone, email, grade, guardian_name, guardian_email, guardian_phone)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                person_id,
+                phone,
+                email,
+                grade,
+                guardian_name,
+                guardian_email,
+                guardian_phone,
+            ),
+        )
+        imported += 1
+
+    return jsonify({"imported": imported, "updated": updated, "skipped": skipped})
 
 
 @app.route("/api/admin/people/<int:person_id>", methods=["PUT", "DELETE"])

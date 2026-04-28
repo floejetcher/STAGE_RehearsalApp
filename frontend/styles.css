@@ -204,6 +204,17 @@ label {
   gap: 10px;
 }
 
+#admin-login-form {
+  min-height: 56vh;
+}
+
+#admin-login-form .login-submit {
+  position: fixed;
+  left: 12px;
+  bottom: 12px;
+  z-index: 20;
+}
+
 .stack-form.compact {
   margin-top: 10px;
 }
@@ -462,6 +473,11 @@ th {
 @media (max-width: 820px) {
   body {
     padding: 10px;
+  }
+
+  #admin-login-form .login-submit {
+    left: 10px;
+    bottom: 10px;
   }
 
   .split-layout {
