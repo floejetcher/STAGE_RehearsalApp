@@ -1097,6 +1097,12 @@ def health():
     return jsonify({"ok": True})
 
 
+@app.route("/student", defaults={"subpath": ""})
+@app.route("/student/<path:subpath>")
+def student_page(subpath):
+    return send_from_directory(app.static_folder, "index.html")
+
+
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
 def static_proxy(path):
