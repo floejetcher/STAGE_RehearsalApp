@@ -109,6 +109,18 @@ function clearSession() {
   state.me = null;
   state.adminScreen = "catalog";
   state.selectedShowId = null;
+  state.showDetail = null;
+  state.rehearsals = [];
+  state.people = [];
+  state.groups = [];
+  state.attendance = null;
+  state.history = [];
+  state.selectedPreExcusedIds = [];
+  state.selectedRehearsalId = null;
+  state.calendarVisible = false;
+  state.calendarMinimized = false;
+  state.calendarMonthOffset = 0;
+  state.dragPayload = null;
   localStorage.removeItem("stage_admin_token");
 }
 
@@ -168,6 +180,10 @@ async function renderAdmin() {
 function renderAdminLogin() {
   const tpl = document.getElementById("admin-login-template");
   appRoot.innerHTML = "";
+  if (!tpl) {
+    appRoot.innerHTML = `<section class="panel narrow admin-login-card"><h2>Admin Sign In</h2><p class="status warning">Login template missing.</p></section>`;
+    return;
+  }
   appRoot.appendChild(tpl.content.cloneNode(true));
 
   const form = document.getElementById("admin-login-form");

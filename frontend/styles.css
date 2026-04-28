@@ -96,8 +96,12 @@ body {
 }
 
 .panel.narrow {
-  max-width: 460px;
-  margin: 4vh auto 0;
+  max-width: 420px;
+  margin: 10vh auto 0;
+}
+
+.admin-login-card {
+  padding: 18px;
 }
 
 .admin-grid {
@@ -205,14 +209,12 @@ label {
 }
 
 #admin-login-form {
-  min-height: 56vh;
+  min-height: 0;
 }
 
 #admin-login-form .login-submit {
-  position: fixed;
-  left: 12px;
-  bottom: 12px;
-  z-index: 20;
+  position: static;
+  width: 100%;
 }
 
 .stack-form.compact {
@@ -673,11 +675,6 @@ th {
 
   .catalog-right-actions {
     justify-content: flex-start;
-  }
-
-  #admin-login-form .login-submit {
-    left: 10px;
-    bottom: 10px;
   }
 
   .split-layout {
