@@ -427,7 +427,6 @@ function renderShowCatalog() {
           <div class="catalog-overlay">
             <button type="button" class="open-show-btn" data-show-id="${show.id}">Open</button>
           </div>
-          <h3>${escapeHtml(show.name)}</h3>
         </article>
       `;
     })
@@ -435,13 +434,15 @@ function renderShowCatalog() {
 
   appRoot.innerHTML = `
     <section class="panel catalog-panel">
-      <div class="section-header">
-        <div>
+      <div class="catalog-header">
+        <div class="catalog-left-actions">
+          <button id="catalog-create-show-btn" type="button">Create Show</button>
+        </div>
+        <div class="catalog-title-block">
           <h2>Show Catalog</h2>
           <p class="muted">Signed in as ${escapeHtml(state.me.username)} (${escapeHtml(state.me.role)})</p>
         </div>
-        <div class="inline-row">
-          <button id="catalog-create-show-btn" type="button">Create Show</button>
+        <div class="inline-row catalog-right-actions">
           <button id="catalog-refresh-btn" class="ghost" type="button">Refresh</button>
           <button id="catalog-logout-btn" class="ghost" type="button">Log Out</button>
         </div>

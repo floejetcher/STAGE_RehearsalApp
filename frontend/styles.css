@@ -383,6 +383,26 @@ th {
   margin: 0 auto;
 }
 
+.catalog-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.catalog-left-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.catalog-title-block {
+  align-self: center;
+}
+
+.catalog-right-actions {
+  justify-content: flex-end;
+}
+
 .catalog-grid {
   margin-top: 14px;
   display: grid;
@@ -540,6 +560,14 @@ th {
 @media (max-width: 820px) {
   body {
     padding: 10px;
+  }
+
+  .catalog-header {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-right-actions {
+    justify-content: flex-start;
   }
 
   #admin-login-form .login-submit {
