@@ -16,4 +16,4 @@ ENV TOKEN_TTL_HOURS=168
 
 RUN mkdir -p /data/uploads
 
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "server:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--worker-class", "gevent", "--workers", "1", "--timeout", "0", "server:app"]

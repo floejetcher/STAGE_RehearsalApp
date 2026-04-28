@@ -1,10 +1,12 @@
+import json
 import os
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 
 import bcrypt
-from flask import Flask, abort, jsonify, request, send_from_directory
+from flask import Flask, Response, abort, jsonify, request, send_from_directory, stream_with_context
 from flask_cors import CORS
 
 import rehearsal_db
@@ -795,6 +797,89 @@ def student_check_in():
         (rehearsal_db.now_iso(), int(session_id), int(person_id)),
     )
     return jsonify({"ok": True})
+
+
+@app.route("/api/student/events")
+def student_events():
+    def generate():
+        try:
+            while True:
+                active = rehearsal_db.get_any_active_session()
+                if not active:
+                    payload = json.dumps({"active": False, "message": "Attendance not active"})
+                else:
+                    records = rehearsal_db.list_session_records(active["id"])
+                    people = [
+                        {
+                            "record_id": r["id"],
+                            "person_id": r["person_id"],
+                            "name": f"{r['first_name']} {r['last_name']}",
+                            "type": r["type"],
+                            "role": r["role"],
+                            "present": bool(r["present"]),
+                            "pre_excused": bool(r["pre_excused"]),
+                        }
+                        for r in records
+                    ]
+                    payload = json.dumps({"active": True, "session": dict(active), "people": people})
+                yield f"data: {payload}\n\n"
+                time.sleep(1.5)
+        except GeneratorExit:
+            pass
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
+
+
+@app.route("/api/admin/shows/<int:show_id>/attendance/events")
+def admin_attendance_events(show_id):
+    token = request.args.get("token", "").strip()
+    if not token:
+        return jsonify({"error": "token required"}), 401
+
+    row = rehearsal_db.fetch_one(
+        """
+        SELECT t.token, t.expires_at, t.revoked, u.role
+        FROM auth_tokens t
+        JOIN users u ON u.id = t.user_id
+        WHERE t.token = ?
+        """,
+        (token,),
+    )
+    if not row or int(row["revoked"]) == 1:
+        return jsonify({"error": "not authenticated"}), 401
+    if datetime.fromisoformat(row["expires_at"]) <= datetime.now(timezone.utc):
+        return jsonify({"error": "token expired"}), 401
+
+    def generate():
+        try:
+            while True:
+                active = rehearsal_db.get_active_session(show_id)
+                records = rehearsal_db.list_session_records(active["id"]) if active else []
+                payload = json.dumps(
+                    {"active_session": dict(active) if active else None, "records": records}
+                )
+                yield f"data: {payload}\n\n"
+                time.sleep(1.5)
+        except GeneratorExit:
+            pass
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 @app.route("/api/health", methods=["GET"])

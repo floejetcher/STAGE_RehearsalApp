@@ -27,7 +27,9 @@ const state = {
   todayDate: new Date().toISOString().slice(0, 10),
   selectedRehearsalId: null,
   studentSession: null,
-  pollingHandle: null
+  pollingHandle: null,
+  eventSource: null,
+  adminEventSource: null
 };
 
 function headers(includeJson = false) {
@@ -885,8 +887,19 @@ function openPersonModal(person = null) {
 
 async function renderStudent() {
   await refreshStudentView();
-  if (state.pollingHandle) clearInterval(state.pollingHandle);
-  state.pollingHandle = setInterval(refreshStudentView, 4000);
+  if (state.pollingHandle) { clearInterval(state.pollingHandle); state.pollingHandle = null; }
+  if (state.eventSource) { state.eventSource.close(); state.eventSource = null; }
+  state.eventSource = new EventSource(`${API_BASE}/api/student/events`);
+  state.eventSource.onmessage = (ev) => {
+    try {
+      state.studentSession = JSON.parse(ev.data);
+      renderStudentLayout();
+    } catch (_e) {}
+  };
+  state.eventSource.onerror = () => {
+    // Fall back to polling if SSE fails
+    if (!state.pollingHandle) state.pollingHandle = setInterval(refreshStudentView, 5000);
+  };
 }
 
 async function refreshStudentView() {
