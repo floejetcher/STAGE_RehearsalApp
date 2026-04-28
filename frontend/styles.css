@@ -457,6 +457,7 @@ th {
 .show-floating-controls {
   position: fixed;
   left: 16px;
+  right: auto;
   bottom: 16px;
   width: min(260px, calc(100vw - 32px));
   z-index: 40;

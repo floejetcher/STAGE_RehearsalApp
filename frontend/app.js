@@ -218,6 +218,11 @@ function renderAdminLayout() {
     return;
   }
 
+  if (state.adminScreen === "edit") {
+    renderShowEditScreen();
+    return;
+  }
+
   const showOptions = state.shows
     .map((s) => `<option value="${s.id}" ${s.id === state.selectedShowId ? "selected" : ""}>${escapeHtml(s.name)}</option>`)
     .join("");
@@ -307,6 +312,7 @@ function renderAdminLayout() {
         <div class="show-cover-panel panel">
           <h4>${escapeHtml(state.showDetail ? state.showDetail.name : "Selected Show")}</h4>
           <div class="show-cover-preview">${coverPreview}</div>
+          <button id="open-show-edit" type="button">Edit Show</button>
           <button id="logout-btn" class="ghost">Log Out</button>
         </div>
       </aside>
@@ -342,6 +348,10 @@ function renderShowSetup() {
             Cover Image (optional)
             <input name="cover_image" type="file" accept=".png,.jpg,.jpeg,.webp,.gif">
           </label>
+          <label>
+            Cast & Crew CSV (optional)
+            <input name="cast_crew_csv" type="file" accept=".csv,text/csv">
+          </label>
           <button type="submit">Create Show</button>
         </form>
       </section>
@@ -349,6 +359,63 @@ function renderShowSetup() {
   `;
 
   bindAdminEvents();
+}
+
+function renderShowEditScreen() {
+  if (!state.selectedShowId || !state.showDetail) {
+    state.adminScreen = "catalog";
+    renderAdminLayout();
+    return;
+  }
+
+  appRoot.innerHTML = `
+    <section class="panel catalog-panel">
+      <div class="section-header">
+        <div>
+          <h2>Edit Show</h2>
+          <p class="muted">Update show title or cover image.</p>
+        </div>
+        <div class="inline-row">
+          <button id="edit-back-to-workspace" class="ghost" type="button">Back to Show</button>
+          <button id="setup-logout-btn" class="ghost" type="button">Log Out</button>
+        </div>
+      </div>
+
+      <section class="panel narrow admin-login-card">
+        <form id="edit-show-form" class="stack-form compact">
+          <label>
+            Show Name
+            <input name="name" value="${escapeHtml(state.showDetail.name)}" required>
+          </label>
+          <label>
+            Replace Cover Image (optional)
+            <input name="cover_image" type="file" accept=".png,.jpg,.jpeg,.webp,.gif">
+          </label>
+          <div class="inline-row">
+            <button type="submit">Save Changes</button>
+            <button id="delete-show" class="danger" type="button">Delete Show</button>
+          </div>
+        </form>
+      </section>
+    </section>
+  `;
+
+  bindAdminEvents();
+}
+
+async function importCsvForShow(showId, csvFile) {
+  if (!csvFile || typeof csvFile !== "object" || csvFile.size <= 0) {
+    return null;
+  }
+
+  const csvPayload = new FormData();
+  csvPayload.append("file", csvFile);
+  const res = await fetch(`${API.shows}/${showId}/people/import-csv`, {
+    method: "POST",
+    headers: headers(false),
+    body: csvPayload
+  });
+  return handleResponse(res);
 }
 
 function renderRehearsalCalendar() {
@@ -686,6 +753,12 @@ function bindAdminEvents() {
     renderAdminLayout();
   });
 
+  document.getElementById("edit-back-to-workspace")?.addEventListener("click", async () => {
+    state.adminScreen = "workspace";
+    await loadAdminData();
+    renderAdminLayout();
+  });
+
   document.getElementById("setup-logout-btn")?.addEventListener("click", async () => {
     try {
       await apiPost(API.adminLogout, {});
@@ -717,11 +790,17 @@ function bindAdminEvents() {
     renderAdmin();
   });
 
+  document.getElementById("open-show-edit")?.addEventListener("click", () => {
+    state.adminScreen = "edit";
+    renderAdminLayout();
+  });
+
   document.getElementById("new-show-form")?.addEventListener("submit", async (ev) => {
     ev.preventDefault();
     const formData = new FormData(ev.target);
     const name = String(formData.get("name") || "").trim();
     const coverImage = formData.get("cover_image");
+    const castCrewCsv = formData.get("cast_crew_csv");
     if (!name) return;
     try {
       const payload = new FormData();
@@ -737,10 +816,37 @@ function bindAdminEvents() {
       });
       const show = await handleResponse(res);
       state.selectedShowId = show.id;
+      state.showDetail = show;
+      state.shows = [
+        ...state.shows.filter((s) => s.id !== show.id),
+        show
+      ].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+
+      let importSummary = null;
+      if (castCrewCsv && typeof castCrewCsv === "object" && castCrewCsv.size > 0) {
+        importSummary = await importCsvForShow(show.id, castCrewCsv);
+      }
+
       state.adminScreen = "workspace";
-      await loadAdminData();
+
+      // Retry once if follow-up reads briefly race right after show creation.
+      try {
+        await loadAdminData();
+      } catch (loadErr) {
+        if ((loadErr.message || "").toLowerCase().includes("show not found")) {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          await loadAdminData();
+        } else {
+          throw loadErr;
+        }
+      }
+
       renderAdminLayout();
-      notify("Show created.");
+      if (importSummary) {
+        notify(`Show created. CSV imported ${importSummary.imported}, updated ${importSummary.updated}, skipped ${importSummary.skipped}.`);
+      } else {
+        notify("Show created.");
+      }
     } catch (err) {
       notify(err.message, true);
     }
