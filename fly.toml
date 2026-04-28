@@ -1,10 +1,16 @@
-# fly.toml app configuration file generated for postgresassign-floe-jetcher on 2026-01-05T07:24:22Z
+# fly.toml app configuration file generated for stage-rehearsalapp on 2026-04-28T14:49:27Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'stageinventorysystem'
-primary_region = 'iad'
+app = 'stage-rehearsalapp'
+primary_region = 'ams'
+
+[build]
+
+[[mounts]]
+  source = 'data'
+  destination = '/data'
 
 [env]
   TOKEN_TTL_HOURS = "12"
@@ -20,15 +26,11 @@ primary_region = 'iad'
   processes = ['app']
 
   [[http_service.checks]]
-    grace_period = "10s"
-    interval = "30s"
-    method = "GET"
-    path = "/api/health"
-    timeout = "5s"
-
-[[mounts]]
-  source = "data"
-  destination = "/data"
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/api/health'
 
 [[vm]]
   memory = '1gb'
