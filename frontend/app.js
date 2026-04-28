@@ -12,7 +12,7 @@ const API = {
 
 const appRoot = document.getElementById("app");
 const state = {
-  mode: location.pathname.startsWith("/admin") ? "admin" : "student",
+  mode: location.pathname.startsWith("/student") ? "student" : "admin",
   token: localStorage.getItem("stage_admin_token") || "",
   me: null,
   shows: [],

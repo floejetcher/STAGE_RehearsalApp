@@ -1,15 +1,15 @@
 :root {
-  --ink-0: #0f172a;
-  --ink-1: #1e293b;
-  --ink-2: #334155;
-  --ink-soft: #64748b;
-  --paper: #f8fafc;
-  --paper-2: #e2e8f0;
-  --accent: #d97706;
-  --accent-2: #0f766e;
-  --danger: #b91c1c;
-  --ok: #166534;
-  --shadow: rgba(15, 23, 42, 0.16);
+  --ink-0: #e2e8f8;
+  --ink-1: #c4cee8;
+  --ink-2: #8896b8;
+  --ink-soft: #7080a8;
+  --paper: #0f1428;
+  --paper-2: #161d38;
+  --accent: #7c3aed;
+  --accent-2: #4f46e5;
+  --danger: #dc2626;
+  --ok: #16a34a;
+  --shadow: rgba(0, 0, 20, 0.55);
   --radius: 14px;
 }
 
@@ -23,9 +23,9 @@ body {
   font-family: "Space Grotesk", sans-serif;
   color: var(--ink-0);
   background:
-    radial-gradient(circle at 10% 15%, rgba(217, 119, 6, 0.22), transparent 45%),
-    radial-gradient(circle at 88% 25%, rgba(15, 118, 110, 0.2), transparent 42%),
-    linear-gradient(160deg, #f1f5f9 0%, #fff7ed 52%, #f8fafc 100%);
+    radial-gradient(circle at 10% 15%, rgba(124, 58, 237, 0.18), transparent 45%),
+    radial-gradient(circle at 88% 25%, rgba(79, 70, 229, 0.16), transparent 42%),
+    linear-gradient(160deg, #080c1a 0%, #0d1230 52%, #0a0e22 100%);
   padding: 18px;
 }
 
@@ -42,13 +42,13 @@ body {
 .bg-orb-a {
   top: -90px;
   left: -60px;
-  background: rgba(245, 158, 11, 0.2);
+  background: rgba(124, 58, 237, 0.25);
 }
 
 .bg-orb-b {
   right: -80px;
   bottom: -90px;
-  background: rgba(20, 184, 166, 0.22);
+  background: rgba(79, 70, 229, 0.28);
 }
 
 .site-header {
@@ -79,16 +79,16 @@ body {
 .site-header a {
   text-decoration: none;
   color: var(--ink-1);
-  background: rgba(248, 250, 252, 0.9);
-  border: 1px solid rgba(51, 65, 85, 0.18);
+  background: rgba(124, 58, 237, 0.18);
+  border: 1px solid rgba(124, 58, 237, 0.38);
   border-radius: 999px;
   padding: 8px 12px;
   font-weight: 600;
 }
 
 .panel {
-  background: rgba(248, 250, 252, 0.92);
-  border: 1px solid rgba(30, 41, 59, 0.1);
+  background: rgba(13, 18, 48, 0.88);
+  border: 1px solid rgba(124, 58, 237, 0.22);
   border-radius: var(--radius);
   box-shadow: 0 10px 32px var(--shadow);
   padding: 16px;
@@ -133,20 +133,20 @@ p {
 }
 
 .status {
-  background: rgba(148, 163, 184, 0.18);
-  border: 1px solid rgba(100, 116, 139, 0.3);
+  background: rgba(79, 70, 229, 0.14);
+  border: 1px solid rgba(124, 58, 237, 0.3);
   border-radius: 10px;
   padding: 8px 10px;
 }
 
 .status.ok {
-  border-color: rgba(22, 101, 52, 0.35);
-  background: rgba(22, 163, 74, 0.12);
+  border-color: rgba(22, 163, 74, 0.45);
+  background: rgba(22, 163, 74, 0.14);
 }
 
 .status.warning {
-  border-color: rgba(180, 83, 9, 0.35);
-  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(234, 179, 8, 0.4);
+  background: rgba(234, 179, 8, 0.12);
 }
 
 button,
@@ -159,7 +159,7 @@ button {
   border: none;
   border-radius: 10px;
   padding: 9px 13px;
-  background: linear-gradient(110deg, var(--accent), #f59e0b);
+  background: linear-gradient(110deg, var(--accent), #6d28d9);
   color: #fff;
   font-weight: 700;
   cursor: pointer;
@@ -175,7 +175,7 @@ button:disabled {
 }
 
 button.ghost {
-  background: linear-gradient(120deg, var(--ink-2), var(--ink-1));
+  background: linear-gradient(120deg, #1e2a4a, #2a3566);
 }
 
 button.danger {
@@ -186,10 +186,11 @@ input,
 select,
 textarea {
   width: 100%;
-  border: 1px solid rgba(30, 41, 59, 0.2);
+  border: 1px solid rgba(124, 58, 237, 0.3);
   border-radius: 10px;
   padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(10, 14, 40, 0.85);
+  color: var(--ink-0);
 }
 
 label {
@@ -233,9 +234,9 @@ label {
 }
 
 .person-card {
-  border: 1px solid rgba(51, 65, 85, 0.2);
+  border: 1px solid rgba(79, 70, 229, 0.25);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(13, 18, 52, 0.82);
   overflow: hidden;
 }
 
@@ -268,7 +269,7 @@ label {
   border-radius: 999px;
   padding: 3px 8px;
   color: #fff;
-  background: linear-gradient(110deg, var(--accent-2), #14b8a6);
+  background: linear-gradient(110deg, var(--accent), #4f46e5);
 }
 
 .tabs {
@@ -278,11 +279,11 @@ label {
 }
 
 .tab-btn {
-  background: linear-gradient(110deg, #64748b, #475569);
+  background: linear-gradient(110deg, #1e2a4a, #2a3566);
 }
 
 .tab-btn.active {
-  background: linear-gradient(110deg, var(--accent-2), #14b8a6);
+  background: linear-gradient(110deg, var(--accent), var(--accent-2));
 }
 
 .tab-panel {
@@ -296,8 +297,8 @@ label {
 table {
   width: 100%;
   border-collapse: collapse;
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(51, 65, 85, 0.15);
+  background: rgba(10, 14, 40, 0.7);
+  border: 1px solid rgba(79, 70, 229, 0.2);
   border-radius: 10px;
   overflow: hidden;
 }
@@ -305,17 +306,17 @@ table {
 th,
 td {
   padding: 8px;
-  border-bottom: 1px solid rgba(51, 65, 85, 0.1);
+  border-bottom: 1px solid rgba(79, 70, 229, 0.15);
   text-align: left;
 }
 
 th {
-  background: rgba(241, 245, 249, 0.95);
+  background: rgba(79, 70, 229, 0.18);
 }
 
 .block {
   margin-top: 14px;
-  border-top: 1px solid rgba(51, 65, 85, 0.16);
+  border-top: 1px solid rgba(79, 70, 229, 0.2);
   padding-top: 14px;
 }
 
@@ -327,8 +328,8 @@ th {
 }
 
 .group-card {
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(51, 65, 85, 0.16);
+  background: rgba(13, 18, 52, 0.8);
+  border: 1px solid rgba(79, 70, 229, 0.22);
   border-radius: 10px;
   padding: 10px;
   margin-bottom: 8px;
@@ -345,8 +346,8 @@ th {
 }
 
 .history-card {
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px solid rgba(30, 41, 59, 0.16);
+  background: rgba(13, 18, 52, 0.82);
+  border: 1px solid rgba(79, 70, 229, 0.22);
   border-radius: 10px;
   padding: 10px;
 }
@@ -372,8 +373,8 @@ th {
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(51, 65, 85, 0.18);
+  background: rgba(13, 18, 52, 0.82);
+  border: 1px solid rgba(124, 58, 237, 0.25);
   border-radius: 9px;
   padding: 8px 10px;
 }
@@ -391,7 +392,7 @@ th {
 .modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(15, 23, 42, 0.38);
+  background: rgba(0, 0, 18, 0.65);
   pointer-events: auto;
 }
 
@@ -403,10 +404,10 @@ th {
   width: min(860px, calc(100vw - 24px));
   max-height: calc(100vh - 30px);
   overflow: auto;
-  background: rgba(248, 250, 252, 0.98);
-  border: 1px solid rgba(30, 41, 59, 0.15);
+  background: rgba(10, 14, 38, 0.98);
+  border: 1px solid rgba(124, 58, 237, 0.3);
   border-radius: 12px;
-  box-shadow: 0 18px 60px rgba(15, 23, 42, 0.25);
+  box-shadow: 0 18px 60px rgba(0, 0, 20, 0.6);
   padding: 14px;
   pointer-events: auto;
 }
