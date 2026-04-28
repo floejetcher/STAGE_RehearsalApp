@@ -187,6 +187,13 @@ async function loadAdminData() {
   }
 
   const showId = state.selectedShowId;
+  state.showDetail = null;
+  state.rehearsals = [];
+  state.people = [];
+  state.groups = [];
+  state.attendance = null;
+  state.history = [];
+  state.selectedPreExcusedIds = [];
   state.showDetail = await apiGet(`${API.shows}/${showId}`);
   state.rehearsals = await apiGet(`${API.shows}/${showId}/rehearsals`);
   state.people = await apiGet(`${API.shows}/${showId}/people`);
@@ -416,6 +423,26 @@ async function importCsvForShow(showId, csvFile) {
     body: csvPayload
   });
   return handleResponse(res);
+}
+
+async function loadAdminDataWithShowRetry(attempts = 8, delayMs = 250) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      await loadAdminData();
+      return;
+    } catch (err) {
+      lastError = err;
+      const isShowNotFound = (err.message || "").toLowerCase().includes("show not found");
+      if (!isShowNotFound || attempt === attempts) {
+        throw err;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  if (lastError) {
+    throw lastError;
+  }
 }
 
 function renderRehearsalCalendar() {
@@ -829,17 +856,7 @@ function bindAdminEvents() {
 
       state.adminScreen = "workspace";
 
-      // Retry once if follow-up reads briefly race right after show creation.
-      try {
-        await loadAdminData();
-      } catch (loadErr) {
-        if ((loadErr.message || "").toLowerCase().includes("show not found")) {
-          await new Promise((resolve) => setTimeout(resolve, 300));
-          await loadAdminData();
-        } else {
-          throw loadErr;
-        }
-      }
+      await loadAdminDataWithShowRetry();
 
       renderAdminLayout();
       if (importSummary) {
