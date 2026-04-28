@@ -10,6 +10,7 @@ from functools import wraps
 import bcrypt
 from flask import Flask, Response, abort, jsonify, request, send_from_directory, stream_with_context
 from flask_cors import CORS
+from werkzeug.utils import secure_filename
 
 import rehearsal_db
 
@@ -19,6 +20,8 @@ CORS(app)
 
 TOKEN_TTL_HOURS = int(os.getenv("TOKEN_TTL_HOURS", "12"))
 VALID_ROLES = {"manager", "officer", "director"}
+SHOW_COVERS_FOLDER = os.getenv("SHOW_COVERS_FOLDER", "/data/show_covers")
+os.makedirs(SHOW_COVERS_FOLDER, exist_ok=True)
 
 
 def _now_utc() -> datetime:
@@ -146,6 +149,12 @@ def _rehearsal_exists(rehearsal_id: int) -> bool:
     return bool(row)
 
 
+def _show_cover_url(filename: str) -> str:
+    if not filename:
+        return ""
+    return f"/api/show-covers/{filename}"
+
+
 def _infer_person_type(raw_type: str, role: str) -> str:
     type_value = (raw_type or "").strip().lower()
     if type_value in {"cast", "crew"}:
@@ -249,15 +258,37 @@ def users(_user):
 @require_admin
 def shows(_user):
     if request.method == "GET":
-        rows = rehearsal_db.fetch_all("SELECT id, name, created_at FROM shows ORDER BY name")
+        rows = rehearsal_db.fetch_all("SELECT id, name, cover_image, created_at FROM shows ORDER BY name")
+        for row in rows:
+            row["cover_image_url"] = _show_cover_url(row.get("cover_image") or "")
         return jsonify(rows)
 
-    data = request.get_json(silent=True) or {}
-    name = str(data.get("name", "")).strip()
+    is_multipart = (request.content_type or "").lower().startswith("multipart/form-data")
+    if is_multipart:
+        name = str(request.form.get("name", "")).strip()
+        upload = request.files.get("cover_image")
+    else:
+        data = request.get_json(silent=True) or {}
+        name = str(data.get("name", "")).strip()
+        upload = None
+
     if not name:
         return jsonify({"error": "name is required"}), 400
-    show_id = rehearsal_db.execute("INSERT INTO shows(name) VALUES (?)", (name,))
-    row = rehearsal_db.fetch_one("SELECT id, name, created_at FROM shows WHERE id = ?", (show_id,))
+
+    cover_filename = None
+    if upload and upload.filename:
+        safe_name = secure_filename(upload.filename)
+        if not safe_name:
+            return jsonify({"error": "invalid cover image filename"}), 400
+        ext = os.path.splitext(safe_name)[1].lower()
+        if ext not in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
+            return jsonify({"error": "cover image must be png, jpg, jpeg, webp, or gif"}), 400
+        cover_filename = f"{uuid.uuid4().hex}{ext}"
+        upload.save(os.path.join(SHOW_COVERS_FOLDER, cover_filename))
+
+    show_id = rehearsal_db.execute("INSERT INTO shows(name, cover_image) VALUES (?, ?)", (name, cover_filename))
+    row = rehearsal_db.fetch_one("SELECT id, name, cover_image, created_at FROM shows WHERE id = ?", (show_id,))
+    row["cover_image_url"] = _show_cover_url(row.get("cover_image") or "")
     return jsonify(row), 201
 
 
@@ -265,9 +296,10 @@ def shows(_user):
 @require_admin
 def show_detail(_user, show_id):
     if request.method == "GET":
-        row = rehearsal_db.fetch_one("SELECT id, name, created_at FROM shows WHERE id = ?", (show_id,))
+        row = rehearsal_db.fetch_one("SELECT id, name, cover_image, created_at FROM shows WHERE id = ?", (show_id,))
         if not row:
             return jsonify({"error": "show not found"}), 404
+        row["cover_image_url"] = _show_cover_url(row.get("cover_image") or "")
         return jsonify(row)
 
     if request.method == "DELETE":
@@ -279,7 +311,8 @@ def show_detail(_user, show_id):
     if not name:
         return jsonify({"error": "name is required"}), 400
     rehearsal_db.execute("UPDATE shows SET name = ? WHERE id = ?", (name, show_id))
-    row = rehearsal_db.fetch_one("SELECT id, name, created_at FROM shows WHERE id = ?", (show_id,))
+    row = rehearsal_db.fetch_one("SELECT id, name, cover_image, created_at FROM shows WHERE id = ?", (show_id,))
+    row["cover_image_url"] = _show_cover_url(row.get("cover_image") or "")
     return jsonify(row)
 
 
@@ -1052,6 +1085,11 @@ def admin_attendance_events(show_id):
             "Connection": "keep-alive",
         },
     )
+
+
+@app.route("/api/show-covers/<path:filename>", methods=["GET"])
+def show_cover_file(filename):
+    return send_from_directory(SHOW_COVERS_FOLDER, filename)
 
 
 @app.route("/api/health", methods=["GET"])

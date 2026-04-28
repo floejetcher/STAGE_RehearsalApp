@@ -13,6 +13,7 @@ const API = {
 const appRoot = document.getElementById("app");
 const state = {
   mode: location.pathname.startsWith("/student") ? "student" : "admin",
+  adminScreen: "catalog",
   token: localStorage.getItem("stage_admin_token") || "",
   me: null,
   shows: [],
@@ -102,6 +103,8 @@ async function handleResponse(res) {
 function clearSession() {
   state.token = "";
   state.me = null;
+  state.adminScreen = "catalog";
+  state.selectedShowId = null;
   localStorage.removeItem("stage_admin_token");
 }
 
@@ -184,10 +187,6 @@ function renderAdminLogin() {
 async function loadAdminData() {
   state.shows = await apiGet(API.shows);
 
-  if (!state.selectedShowId && state.shows.length) {
-    state.selectedShowId = state.shows[0].id;
-  }
-
   if (!state.selectedShowId) {
     state.showDetail = null;
     state.rehearsals = [];
@@ -222,6 +221,11 @@ async function loadAdminData() {
 }
 
 function renderAdminLayout() {
+  if (state.adminScreen === "catalog") {
+    renderShowCatalog();
+    return;
+  }
+
   const showOptions = state.shows
     .map((s) => `<option value="${s.id}" ${s.id === state.selectedShowId ? "selected" : ""}>${escapeHtml(s.name)}</option>`)
     .join("");
@@ -269,7 +273,10 @@ function renderAdminLayout() {
   appRoot.innerHTML = `
     <section class="admin-grid">
       <aside class="panel sidebar-panel">
-        <h2>Admin View</h2>
+        <div class="section-header">
+          <h2>Admin View</h2>
+          <button id="back-to-catalog" class="ghost" type="button">Show Catalog</button>
+        </div>
         <p class="muted">Signed in as ${escapeHtml(state.me.username)} (${escapeHtml(state.me.role)})</p>
 
         <label>Show</label>
@@ -282,6 +289,10 @@ function renderAdminLayout() {
           <label>
             New Show Name
             <input name="name" required>
+          </label>
+          <label>
+            Cover Image (optional)
+            <input name="cover_image" type="file" accept=".png,.jpg,.jpeg,.webp,.gif">
           </label>
           <button type="submit">Create Show</button>
         </form>
@@ -404,6 +415,46 @@ function renderAdminLayout() {
   bindAdminEvents();
 }
 
+function renderShowCatalog() {
+  const cards = state.shows
+    .map((show) => {
+      const cover = show.cover_image_url
+        ? `<img src="${escapeHtml(show.cover_image_url)}" alt="${escapeHtml(show.name)} cover">`
+        : `<div class="catalog-placeholder">${escapeHtml(show.name.slice(0, 1).toUpperCase() || "S")}</div>`;
+      return `
+        <article class="catalog-card" data-show-id="${show.id}">
+          <div class="catalog-cover">${cover}</div>
+          <div class="catalog-overlay">
+            <button type="button" class="open-show-btn" data-show-id="${show.id}">Open</button>
+          </div>
+          <h3>${escapeHtml(show.name)}</h3>
+        </article>
+      `;
+    })
+    .join("");
+
+  appRoot.innerHTML = `
+    <section class="panel catalog-panel">
+      <div class="section-header">
+        <div>
+          <h2>Show Catalog</h2>
+          <p class="muted">Signed in as ${escapeHtml(state.me.username)} (${escapeHtml(state.me.role)})</p>
+        </div>
+        <div class="inline-row">
+          <button id="catalog-create-show-btn" type="button">Create Show</button>
+          <button id="catalog-refresh-btn" class="ghost" type="button">Refresh</button>
+          <button id="catalog-logout-btn" class="ghost" type="button">Log Out</button>
+        </div>
+      </div>
+      <div class="catalog-grid">
+        ${cards || "<p class='muted'>No shows yet. Click Create Show to add your first production.</p>"}
+      </div>
+    </section>
+  `;
+
+  bindAdminEvents();
+}
+
 function currentRehearsal() {
   return state.rehearsals.find((r) => r.id === state.selectedRehearsalId) || null;
 }
@@ -521,6 +572,43 @@ function renderPreExcusedList() {
 }
 
 function bindAdminEvents() {
+  document.getElementById("catalog-create-show-btn")?.addEventListener("click", async () => {
+    state.adminScreen = "workspace";
+    state.selectedShowId = null;
+    await loadAdminData();
+    renderAdminLayout();
+  });
+
+  document.getElementById("catalog-refresh-btn")?.addEventListener("click", async () => {
+    await loadAdminData();
+    renderAdminLayout();
+  });
+
+  document.getElementById("catalog-logout-btn")?.addEventListener("click", async () => {
+    try {
+      await apiPost(API.adminLogout, {});
+    } catch (_err) {
+      // Ignore logout API failures and clear local session anyway.
+    }
+    clearSession();
+    renderAdmin();
+  });
+
+  appRoot.querySelectorAll(".open-show-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      state.selectedShowId = Number(btn.dataset.showId);
+      state.adminScreen = "workspace";
+      await loadAdminData();
+      renderAdminLayout();
+    });
+  });
+
+  document.getElementById("back-to-catalog")?.addEventListener("click", async () => {
+    state.adminScreen = "catalog";
+    await loadAdminData();
+    renderAdminLayout();
+  });
+
   document.getElementById("show-select")?.addEventListener("change", async (ev) => {
     state.selectedShowId = Number(ev.target.value);
     await loadAdminData();
@@ -544,12 +632,25 @@ function bindAdminEvents() {
 
   document.getElementById("new-show-form")?.addEventListener("submit", async (ev) => {
     ev.preventDefault();
-    const fd = new FormData(ev.target);
-    const name = String(fd.get("name") || "").trim();
+    const formData = new FormData(ev.target);
+    const name = String(formData.get("name") || "").trim();
+    const coverImage = formData.get("cover_image");
     if (!name) return;
     try {
-      const show = await apiPost(API.shows, { name });
+      const payload = new FormData();
+      payload.append("name", name);
+      if (coverImage && typeof coverImage === "object" && coverImage.size > 0) {
+        payload.append("cover_image", coverImage);
+      }
+
+      const res = await fetch(API.shows, {
+        method: "POST",
+        headers: headers(false),
+        body: payload
+      });
+      const show = await handleResponse(res);
       state.selectedShowId = show.id;
+      state.adminScreen = "workspace";
       await loadAdminData();
       renderAdminLayout();
       notify("Show created.");
@@ -925,20 +1026,21 @@ function openPersonModal(person = null) {
 }
 
 async function renderStudent() {
-  await refreshStudentView();
-  if (state.pollingHandle) { clearInterval(state.pollingHandle); state.pollingHandle = null; }
-  if (state.eventSource) { state.eventSource.close(); state.eventSource = null; }
-  state.eventSource = new EventSource(`${API_BASE}/api/student/events`);
-  state.eventSource.onmessage = (ev) => {
-    try {
-      state.studentSession = JSON.parse(ev.data);
-      renderStudentLayout();
-    } catch (_e) {}
-  };
-  state.eventSource.onerror = () => {
-    // Fall back to polling if SSE fails
-    if (!state.pollingHandle) state.pollingHandle = setInterval(refreshStudentView, 5000);
-  };
+  if (state.pollingHandle) {
+    clearInterval(state.pollingHandle);
+    state.pollingHandle = null;
+  }
+  if (state.eventSource) {
+    state.eventSource.close();
+    state.eventSource = null;
+  }
+  appRoot.innerHTML = `
+    <section class="panel student-panel offline-panel">
+      <h2>Student View</h2>
+      <p class="status warning">Currently Offline</p>
+      <p class="muted">This page is temporarily unavailable. Please check back shortly.</p>
+    </section>
+  `;
 }
 
 async function refreshStudentView() {

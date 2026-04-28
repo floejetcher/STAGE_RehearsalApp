@@ -52,6 +52,7 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS shows (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
+                cover_image TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -142,6 +143,11 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_attendance_sessions_active ON attendance_sessions(show_id, active);
             """
         )
+
+        # Forward-compatible migration for older databases created before cover_image existed.
+        show_columns = [row["name"] for row in conn.execute("PRAGMA table_info(shows)").fetchall()]
+        if "cover_image" not in show_columns:
+            conn.execute("ALTER TABLE shows ADD COLUMN cover_image TEXT")
 
 
 def fetch_all(sql: str, params: tuple = ()) -> List[Dict[str, Any]]:
