@@ -275,7 +275,7 @@ function renderAdminLayout() {
         <h2>Rehearsal Page</h2>
         <p class="muted">Left: cast/crew list with expandable details. Right: attendance controls and drag/drop groupings.</p>
 
-        <div class="split-layout">
+        <div class="split-layout workspace-layout">
           <section>
             <h3>Cast & Crew</h3>
             <h4>Cast</h4>
