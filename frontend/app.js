@@ -1309,6 +1309,14 @@ function bindGroupDragDropEvents() {
         ev.dataTransfer.effectAllowed = "move";
       }
     });
+
+    row.addEventListener("contextmenu", (ev) => {
+      ev.preventDefault();
+      const personId = Number(row.dataset.personId);
+      const personType = String(row.dataset.personType || "");
+      if (!personId || !personType) return;
+      openGroupingMembershipModal(personId, personType);
+    });
   });
 
   appRoot.querySelectorAll(".group-dropzone").forEach((zone) => {
@@ -1338,9 +1346,12 @@ function bindGroupDragDropEvents() {
       const person = state.people.find((p) => p.id === payload.personId);
       if (!person) return;
 
-      state.groups.forEach((g) => {
-        g.members = (g.members || []).filter((m) => m.id !== person.id);
-      });
+      if (sourceGroupId) {
+        const sourceGroup = state.groups.find((g) => g.id === Number(sourceGroupId));
+        if (sourceGroup) {
+          sourceGroup.members = (sourceGroup.members || []).filter((m) => m.id !== person.id);
+        }
+      }
 
       if (targetGroupId) {
         const targetGroup = state.groups.find((g) => g.id === Number(targetGroupId));
@@ -1380,6 +1391,87 @@ function bindGroupDragDropEvents() {
         renderAdminLayout();
       }
     });
+  });
+}
+
+function openGroupingMembershipModal(personId, personType) {
+  const modalRoot = document.getElementById("modal-root");
+  if (!modalRoot) return;
+
+  const person = state.people.find((p) => p.id === personId);
+  if (!person) return;
+
+  const groups = (state.groups || [])
+    .filter((g) => g.type === personType)
+    .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
+
+  if (!groups.length) {
+    notify(`No ${personType} groups available. Create one in Edit Show first.`, true);
+    return;
+  }
+
+  const selectedSet = new Set(
+    groups
+      .filter((g) => (g.members || []).some((m) => m.id === personId))
+      .map((g) => g.id)
+  );
+
+  const options = groups
+    .map((g) => {
+      const checked = selectedSet.has(g.id) ? "checked" : "";
+      return `<label><input type="checkbox" class="membership-group-checkbox" value="${g.id}" ${checked}> ${escapeHtml(g.name)}</label>`;
+    })
+    .join("");
+
+  modalRoot.innerHTML = `
+    <div class="modal-backdrop"></div>
+    <div class="modal">
+      <h3>Group Membership</h3>
+      <p class="muted">${escapeHtml(fullName(person))} (${escapeHtml(personType)})</p>
+      <form id="group-membership-form" class="stack-form compact">
+        <div class="pre-excused-grid">${options}</div>
+        <div class="inline-row">
+          <button type="submit">Save Membership</button>
+          <button type="button" id="cancel-membership-modal" class="ghost">Cancel</button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  document.getElementById("cancel-membership-modal")?.addEventListener("click", () => {
+    modalRoot.innerHTML = "";
+  });
+
+  document.getElementById("group-membership-form")?.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+
+    const selectedGroupIds = new Set(
+      Array.from(modalRoot.querySelectorAll(".membership-group-checkbox:checked")).map((el) => Number(el.value))
+    );
+
+    try {
+      for (const group of groups) {
+        const memberIds = new Set((group.members || []).map((m) => m.id));
+        if (selectedGroupIds.has(group.id)) {
+          memberIds.add(personId);
+        } else {
+          memberIds.delete(personId);
+        }
+
+        await apiPut(`${API_BASE}/api/admin/groups/${group.id}`, {
+          name: group.name,
+          type: group.type,
+          member_ids: [...memberIds]
+        });
+      }
+
+      modalRoot.innerHTML = "";
+      await loadAdminData();
+      renderAdminLayout();
+      notify("Group memberships updated.");
+    } catch (err) {
+      notify(err.message, true);
+    }
   });
 }
 
