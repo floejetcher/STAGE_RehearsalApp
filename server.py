@@ -183,6 +183,8 @@ def _infer_person_type(raw_type: str, role: str) -> str:
         "lighting",
         "tech",
         "costume",
+        "puppet",
+        "puppets",
         "makeup",
         "props",
         "set",

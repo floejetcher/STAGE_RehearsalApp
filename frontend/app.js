@@ -415,6 +415,8 @@ function renderShowEditScreen() {
     `)
     .join("");
 
+  const groupingCards = renderGroupList();
+
   appRoot.innerHTML = `
     <section class="panel catalog-panel">
       <div class="section-header">
@@ -502,6 +504,25 @@ function renderShowEditScreen() {
             </table>
           </section>
         </div>
+      </section>
+
+      <section class="panel">
+        <div class="section-header">
+          <h3>Manage Groupings</h3>
+        </div>
+        <form id="new-group-form" class="stack-form compact">
+          <div class="inline-row">
+            <label>Group Name<input name="name" required></label>
+            <label>Type
+              <select name="type">
+                <option value="cast">Cast</option>
+                <option value="crew">Crew</option>
+              </select>
+            </label>
+          </div>
+          <button type="submit">Create Group</button>
+        </form>
+        <div id="group-editor-list">${groupingCards}</div>
       </section>
     </section>
 
@@ -724,10 +745,8 @@ function renderGroupTables() {
       })
       .join("");
 
-    return `
-      <section class="group-type-section">
-        <h5>${escapeHtml(type === "cast" ? "Cast" : "Crew")} Groupings</h5>
-        <div class="group-table-grid">
+    const ungroupedSection = ungrouped.length
+      ? `
           <article class="group-table-card ungrouped">
             <h5>Ungrouped ${escapeHtml(type === "cast" ? "Cast" : "Crew")}</h5>
             <table>
@@ -735,10 +754,18 @@ function renderGroupTables() {
                 <tr><th>Name</th><th>Role</th><th>Status</th></tr>
               </thead>
               <tbody class="group-dropzone" data-target-group-id="" data-group-type="${type}">
-                ${renderRows(ungrouped, "") || `<tr class="group-empty-row"><td colspan="3">No ungrouped members</td></tr>`}
+                ${renderRows(ungrouped, "")}
               </tbody>
             </table>
           </article>
+        `
+      : "";
+
+    return `
+      <section class="group-type-section">
+        <h5>${escapeHtml(type === "cast" ? "Cast" : "Crew")} Groupings</h5>
+        <div class="group-table-grid">
+          ${ungroupedSection}
           ${groupTables || `<article class="group-table-card"><h5>No ${escapeHtml(type)} groups</h5><p class="muted">Create groups in setup mode if needed.</p></article>`}
         </div>
       </section>
@@ -1115,6 +1142,62 @@ function bindAdminEvents() {
     } catch (err) {
       notify(err.message, true);
     }
+  });
+
+  document.getElementById("new-group-form")?.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    if (!state.selectedShowId) return;
+    const fd = new FormData(ev.target);
+    const name = String(fd.get("name") || "").trim();
+    const type = String(fd.get("type") || "cast").trim().toLowerCase();
+    if (!name || !["cast", "crew"].includes(type)) return;
+    try {
+      await apiPost(`${API.shows}/${state.selectedShowId}/groups`, { name, type });
+      await loadAdminData();
+      renderAdminLayout();
+      notify("Group created.");
+    } catch (err) {
+      notify(err.message, true);
+    }
+  });
+
+  appRoot.querySelectorAll(".save-group-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const groupId = Number(btn.dataset.groupId);
+      const card = btn.closest(".group-card");
+      if (!groupId || !card) return;
+
+      const name = String(card.querySelector(".group-name-input")?.value || "").trim();
+      const type = String(card.querySelector(".group-type-select")?.value || "cast").trim().toLowerCase();
+      const selected = Array.from(card.querySelectorAll(".group-members-select option:checked")).map((o) => Number(o.value));
+
+      if (!name || !["cast", "crew"].includes(type)) return;
+
+      try {
+        await apiPut(`${API_BASE}/api/admin/groups/${groupId}`, { name, type, member_ids: selected });
+        await loadAdminData();
+        renderAdminLayout();
+        notify("Group updated.");
+      } catch (err) {
+        notify(err.message, true);
+      }
+    });
+  });
+
+  appRoot.querySelectorAll(".delete-group-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const groupId = Number(btn.dataset.groupId);
+      if (!groupId) return;
+      if (!confirm("Delete this group?")) return;
+      try {
+        await apiDelete(`${API_BASE}/api/admin/groups/${groupId}`);
+        await loadAdminData();
+        renderAdminLayout();
+        notify("Group deleted.");
+      } catch (err) {
+        notify(err.message, true);
+      }
+    });
   });
 
   document.getElementById("start-recording")?.addEventListener("click", async () => {
