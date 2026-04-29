@@ -14,6 +14,7 @@ const appRoot = document.getElementById("app");
 const state = {
   mode: location.pathname.startsWith("/student") ? "student" : "admin",
   adminScreen: "catalog",
+  workspaceTab: "castcrew",
   calendarVisible: false,
   calendarMinimized: false,
   calendarMonthOffset: 0,
@@ -108,6 +109,7 @@ function clearSession() {
   state.token = "";
   state.me = null;
   state.adminScreen = "catalog";
+  state.workspaceTab = "castcrew";
   state.selectedShowId = null;
   state.showDetail = null;
   state.rehearsals = [];
@@ -236,9 +238,7 @@ function renderAdminLayout() {
 
   const todayRehearsal = state.attendance && state.attendance.today_rehearsal;
   const activeSession = state.attendance && state.attendance.active_session;
-  const noRehearsalMessage = state.attendance && state.attendance.no_rehearsal_today
-    ? `<p class="status warning">No rehearsal today.</p>`
-    : "";
+  const selectedRehearsal = currentRehearsal();
 
   const castRows = state.people
     .filter((p) => p.type === "cast")
@@ -273,9 +273,26 @@ function renderAdminLayout() {
 
       <section class="panel">
         <h2>Rehearsal Page</h2>
-        <p class="muted">Left: cast/crew list with expandable details. Right: attendance controls and drag/drop groupings.</p>
 
-        <div class="split-layout workspace-layout">
+        <section class="panel attendance-top-panel">
+          <h3>Active Attendance</h3>
+          <p class="muted">System date: ${escapeHtml(state.todayDate)}</p>
+          ${selectedRehearsal ? `<p class="status ok">Selected rehearsal: ${escapeHtml(selectedRehearsal.date)} ${escapeHtml(selectedRehearsal.start_time || "")}-${escapeHtml(selectedRehearsal.end_time || "")}</p>` : "<p class='status warning'>No rehearsal selected. Add one in Edit Show.</p>"}
+          ${todayRehearsal ? `<p class="muted">Today rehearsal: ${escapeHtml(todayRehearsal.date)} ${escapeHtml(todayRehearsal.start_time || "")}-${escapeHtml(todayRehearsal.end_time || "")}</p>` : ""}
+          ${activeSession ? `<p class="status ok">Recording active (session #${activeSession.id})</p>` : ""}
+          <div class="inline-row">
+            <button id="start-recording" ${!selectedRehearsal || activeSession ? "disabled" : ""}>Record Attendance</button>
+            <button id="stop-recording" class="danger" ${activeSession ? "" : "disabled"}>Stop Recording Attendance</button>
+            <button id="open-attendance-history" class="ghost" type="button">Attendance History</button>
+          </div>
+        </section>
+
+        <div class="tabs workspace-main-tabs">
+          <button class="tab-btn ${state.workspaceTab === "castcrew" ? "active" : ""}" data-workspace-tab="castcrew" type="button">Cast & Crew Info</button>
+          <button class="tab-btn ${state.workspaceTab === "groupings" ? "active" : ""}" data-workspace-tab="groupings" type="button">Groupings</button>
+        </div>
+
+        <div class="split-layout workspace-layout ${state.workspaceTab === "castcrew" ? "" : "hidden"}" id="workspace-castcrew-panel">
           <section>
             <h3>Cast & Crew</h3>
             <h4>Cast</h4>
@@ -283,25 +300,12 @@ function renderAdminLayout() {
             <h4>Crew</h4>
             <div class="person-list">${crewRows || "<p class='muted'>No crew added.</p>"}</div>
           </section>
+        </div>
 
-          <section>
-            <h3>Active Attendance</h3>
-            <p class="muted">System date: ${escapeHtml(state.todayDate)}</p>
-            ${todayRehearsal ? `<p class="status ok">Today rehearsal: ${escapeHtml(todayRehearsal.date)} ${escapeHtml(todayRehearsal.start_time || "")}-${escapeHtml(todayRehearsal.end_time || "")}</p>` : ""}
-            ${noRehearsalMessage}
-            ${activeSession ? `<p class="status ok">Recording active (session #${activeSession.id})</p>` : `<p class="status">Attendance currently not recording.</p>`}
-
-            <div class="inline-row">
-              <button id="start-recording" ${!todayRehearsal || activeSession ? "disabled" : ""}>Record Attendance</button>
-              <button id="stop-recording" class="danger" ${activeSession ? "" : "disabled"}>Stop Recording Attendance</button>
-            </div>
-
-            <section class="block">
-              <h4>Groups</h4>
-              <p class="muted">Drag a person row and drop into another group table to rearrange. Attendance status updates here automatically.</p>
-              <div id="group-list">${groupTables}</div>
-            </section>
-          </section>
+        <section class="block ${state.workspaceTab === "groupings" ? "" : "hidden"}" id="workspace-groupings-panel">
+          <h4>Groups</h4>
+          <p class="muted">Drag a person row and drop into another group table to rearrange. Right-click a row for multi-group assignment.</p>
+          <div id="group-list">${groupTables}</div>
         </div>
       </section>
 
@@ -458,6 +462,13 @@ function renderShowEditScreen() {
             <label>End<input name="end_time" type="time"></label>
           </div>
           <button type="submit">Add Rehearsal</button>
+        </form>
+        <form id="import-rehearsal-csv-form" class="stack-form compact">
+          <label>
+            Import Rehearsal CSV (Template Rehearsals format)
+            <input name="rehearsal_csv" type="file" accept=".csv,text/csv" required>
+          </label>
+          <button type="submit">Import Rehearsal CSV</button>
         </form>
         <div class="stack-form compact">${rehearsalRows || "<p class='muted'>No rehearsals added yet.</p>"}</div>
       </section>
@@ -697,6 +708,7 @@ function attendanceRecordMap() {
 function renderGroupTables() {
   const groups = state.groups || [];
   const recordByPerson = attendanceRecordMap();
+  const showStatusColumn = !!(state.attendance && state.attendance.active_session);
   const byType = {
     cast: groups.filter((g) => g.type === "cast"),
     crew: groups.filter((g) => g.type === "crew")
@@ -715,12 +727,12 @@ function renderGroupTables() {
         const rec = recordByPerson.get(p.id);
         const status = rec
           ? (rec.present ? "Present" : (rec.pre_excused ? "Pre-Excused" : "Absent"))
-          : "Not Recording";
+          : "";
         return `
           <tr class="group-member-row" draggable="true" data-person-id="${p.id}" data-source-group-id="${sourceGroupId}" data-person-type="${type}">
             <td>${escapeHtml(fullName(p))}</td>
             <td>${escapeHtml(p.role)}</td>
-            <td>${escapeHtml(status)}</td>
+            ${showStatusColumn ? `<td>${escapeHtml(status)}</td>` : ""}
           </tr>
         `;
       })
@@ -734,10 +746,10 @@ function renderGroupTables() {
             <h5>${escapeHtml(g.name)}</h5>
             <table>
               <thead>
-                <tr><th>Name</th><th>Role</th><th>Status</th></tr>
+                <tr><th>Name</th><th>Role</th>${showStatusColumn ? "<th>Status</th>" : ""}</tr>
               </thead>
               <tbody class="group-dropzone" data-target-group-id="${g.id}" data-group-type="${type}">
-                ${rows || `<tr class="group-empty-row"><td colspan="3">Drop ${escapeHtml(type)} members here</td></tr>`}
+                ${rows || `<tr class="group-empty-row"><td colspan="${showStatusColumn ? "3" : "2"}">Drop ${escapeHtml(type)} members here</td></tr>`}
               </tbody>
             </table>
           </article>
@@ -751,7 +763,7 @@ function renderGroupTables() {
             <h5>Ungrouped ${escapeHtml(type === "cast" ? "Cast" : "Crew")}</h5>
             <table>
               <thead>
-                <tr><th>Name</th><th>Role</th><th>Status</th></tr>
+                <tr><th>Name</th><th>Role</th>${showStatusColumn ? "<th>Status</th>" : ""}</tr>
               </thead>
               <tbody class="group-dropzone" data-target-group-id="" data-group-type="${type}">
                 ${renderRows(ungrouped, "")}
@@ -1144,6 +1156,29 @@ function bindAdminEvents() {
     }
   });
 
+  document.getElementById("import-rehearsal-csv-form")?.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    if (!state.selectedShowId) return;
+    const fd = new FormData(ev.target);
+    const file = fd.get("rehearsal_csv");
+    if (!file || typeof file !== "object" || file.size <= 0) return;
+    try {
+      const payload = new FormData();
+      payload.append("file", file);
+      const res = await fetch(`${API.shows}/${state.selectedShowId}/rehearsals/import-csv`, {
+        method: "POST",
+        headers: headers(false),
+        body: payload
+      });
+      const result = await handleResponse(res);
+      await loadAdminData();
+      renderAdminLayout();
+      notify(`Rehearsal CSV imported ${result.imported}, existing ${result.existing}, skipped ${result.skipped}.`);
+    } catch (err) {
+      notify(err.message, true);
+    }
+  });
+
   document.getElementById("new-group-form")?.addEventListener("submit", async (ev) => {
     ev.preventDefault();
     if (!state.selectedShowId) return;
@@ -1204,7 +1239,7 @@ function bindAdminEvents() {
     if (!state.selectedShowId) return;
     try {
       await apiPost(`${API.shows}/${state.selectedShowId}/attendance/start`, {
-        rehearsal_id: state.attendance && state.attendance.today_rehearsal ? state.attendance.today_rehearsal.id : null
+        rehearsal_id: state.selectedRehearsalId || (state.attendance && state.attendance.today_rehearsal ? state.attendance.today_rehearsal.id : null)
       });
       await loadAdminData();
       renderAdminLayout();
@@ -1224,6 +1259,17 @@ function bindAdminEvents() {
     } catch (err) {
       notify(err.message, true);
     }
+  });
+
+  document.getElementById("open-attendance-history")?.addEventListener("click", () => {
+    openAttendanceHistoryModal();
+  });
+
+  appRoot.querySelectorAll(".workspace-main-tabs .tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.workspaceTab = String(btn.dataset.workspaceTab || "castcrew");
+      renderAdminLayout();
+    });
   });
 
   bindGroupDragDropEvents();
@@ -1294,6 +1340,40 @@ function bindAdminEvents() {
     } catch (err) {
       notify(err.message, true);
     }
+  });
+}
+
+function openAttendanceHistoryModal() {
+  const modalRoot = document.getElementById("modal-root");
+  if (!modalRoot) return;
+
+  const historyRows = (state.history || [])
+    .map((session) => {
+      const present = (session.records || []).filter((r) => r.present).length;
+      const total = (session.records || []).length;
+      return `
+        <article class="history-card">
+          <h5>${escapeHtml(session.date || "Unknown Date")}</h5>
+          <p class="muted">Session #${escapeHtml(String(session.id || ""))} • ${escapeHtml(session.start_time || "")}-${escapeHtml(session.end_time || "")}</p>
+          <p>${present}/${total} present</p>
+        </article>
+      `;
+    })
+    .join("");
+
+  modalRoot.innerHTML = `
+    <div class="modal-backdrop"></div>
+    <div class="modal">
+      <h3>Attendance History</h3>
+      <div class="history-grid">${historyRows || "<p class='muted'>No attendance history yet.</p>"}</div>
+      <div class="inline-row">
+        <button id="close-history-modal" class="ghost" type="button">Close</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("close-history-modal")?.addEventListener("click", () => {
+    modalRoot.innerHTML = "";
   });
 }
 

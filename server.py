@@ -201,6 +201,36 @@ def _csv_value(row: dict, *keys: str) -> str:
     return ""
 
 
+def _parse_template_rehearsal_header(header: str):
+    value = (header or "").strip()
+    if not value:
+        return None
+
+    parts = value.split("/")
+    if len(parts) not in {2, 3}:
+        return None
+
+    try:
+        month = int(parts[0])
+        day = int(parts[1])
+    except ValueError:
+        return None
+
+    if month < 1 or month > 12 or day < 1 or day > 31:
+        return None
+
+    explicit_year = None
+    if len(parts) == 3 and parts[2].strip():
+        try:
+            explicit_year = int(parts[2])
+            if explicit_year < 100:
+                explicit_year = 2000 + explicit_year
+        except ValueError:
+            return None
+
+    return month, day, explicit_year
+
+
 @app.route("/api/admin/login", methods=["POST"])
 def login():
     data = request.get_json(silent=True) or {}
@@ -382,6 +412,95 @@ def rehearsals(_user, show_id):
         (rehearsal_id,),
     )
     return jsonify(row), 201
+
+
+@app.route("/api/admin/shows/<int:show_id>/rehearsals/import-csv", methods=["POST"])
+@require_admin
+def import_rehearsals_csv(_user, show_id):
+    if not _show_exists(show_id):
+        return jsonify({"error": "show not found"}), 404
+
+    upload = request.files.get("file")
+    if not upload:
+        return jsonify({"error": "file is required"}), 400
+
+    raw_bytes = upload.read()
+    if not raw_bytes:
+        return jsonify({"error": "file is empty"}), 400
+
+    try:
+        csv_text = raw_bytes.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            csv_text = raw_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            return jsonify({"error": "CSV must be UTF-8 encoded"}), 400
+
+    reader = csv.reader(io.StringIO(csv_text))
+    try:
+        headers = next(reader)
+    except StopIteration:
+        return jsonify({"error": "CSV header row is missing"}), 400
+
+    if len(headers) < 4:
+        return jsonify({"error": "Template Rehearsals CSV must include date columns after Pronouns, First Name, Last Name"}), 400
+
+    existing_rows = rehearsal_db.fetch_all(
+        "SELECT date FROM rehearsals WHERE show_id = ?",
+        (show_id,),
+    )
+    existing_dates = {row["date"] for row in existing_rows}
+
+    now = datetime.now()
+    parsed_headers = []
+    for raw in headers[3:]:
+        parsed = _parse_template_rehearsal_header(raw)
+        if parsed:
+            parsed_headers.append((raw, parsed))
+
+    if not parsed_headers:
+        return jsonify({"error": "No rehearsal date headers found in template CSV"}), 400
+
+    first_month = parsed_headers[0][1][0]
+    rolling_year = now.year if first_month <= now.month + 1 else now.year - 1
+    prev_month = None
+
+    imported = 0
+    existing = 0
+    skipped = 0
+    seen_dates = set()
+
+    for _raw, (month, day, explicit_year) in parsed_headers:
+        if explicit_year is not None:
+            year = explicit_year
+        else:
+            if prev_month is not None and month < prev_month:
+                rolling_year += 1
+            year = rolling_year
+        prev_month = month
+
+        try:
+            iso = datetime(year, month, day).strftime("%Y-%m-%d")
+        except ValueError:
+            skipped += 1
+            continue
+
+        if iso in seen_dates:
+            continue
+        seen_dates.add(iso)
+
+        if iso in existing_dates:
+            existing += 1
+            continue
+
+        rehearsal_db.execute(
+            "INSERT INTO rehearsals(show_id, date, start_time, end_time) VALUES (?, ?, ?, ?)",
+            (show_id, iso, None, None),
+        )
+        existing_dates.add(iso)
+        imported += 1
+
+    return jsonify({"imported": imported, "existing": existing, "skipped": skipped})
 
 
 @app.route("/api/admin/rehearsals/<int:rehearsal_id>", methods=["PUT", "DELETE"])

@@ -244,6 +244,24 @@ label {
   gap: 10px;
 }
 
+.hidden {
+  display: none !important;
+}
+
+.attendance-top-panel {
+  margin: 10px auto 14px;
+  max-width: 760px;
+  text-align: center;
+}
+
+.attendance-top-panel .inline-row {
+  justify-content: center;
+}
+
+.workspace-main-tabs {
+  margin: 10px 0 12px;
+}
+
 .split-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
